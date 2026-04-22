@@ -1,0 +1,62 @@
+# MachineTracker 配置文件
+
+# 机器注册表
+machines:
+  local:                          # 这台机器
+    id: "local-machine"           # 唯一 ID
+    name: "本地机器"               # 显示名
+    scan_interval: "30m"          # 扫描间隔
+
+# 存储配置
+storage:
+  path: "~/.local/share/machine-tracker"  # 快照存哪里
+  keep_snapshots: 30                       # 保留最近 30 份快照
+  compress_old: true                       # 旧快照压缩
+
+# 采集器配置
+collectors:
+  enabled: 
+    - service_mapper
+    - apt
+    - docker
+    - systemd
+    - network
+    - nginx
+    - cron
+    - filesystem
+    - npm
+    - pip
+    - config_files
+  config_files:                    # config_files 采集器的特殊配置
+    watch_paths:                   # 监控哪些配置文件/目录
+      - "/etc/nginx/"
+      - "/etc/docker/"
+      - "/etc/fstab"
+      - "~/.bashrc"
+      - "~/.config/systemd/user/"
+
+# 输出配置
+output:
+  format: "markdown"              # 输出格式: markdown | json | table
+  changelog_path: "~/.local/share/machine-tracker/changelog.md"  # 变更日志写到哪
+
+# 风险评估规则
+risk_rules:
+  - pattern: "sshd_config|/etc/ssh"
+    level: "HIGH"
+    reason: "SSH 关键配置发生变动，可能影响系统远程访问安全性。"
+  - pattern: "sudoers|/etc/sudo"
+    level: "HIGH"
+    reason: "提权配置文件发生变动，具有极高安全风险。"
+  - pattern: "passwd|shadow|group"
+    level: "HIGH"
+    reason: "系统账号或密码文件发生变动。"
+  - pattern: "Port 22"
+    level: "HIGH"
+    reason: "检测到 SSH 标准端口可能发生变动或新服务监听。"
+  - pattern: "crontab|/etc/cron"
+    level: "MEDIUM"
+    reason: "定时任务发生变动，需检查是否存在异常计划任务。"
+  - pattern: "docker-compose.yaml"
+    level: "MEDIUM"
+    reason: "Docker 部署配置发生变动。"

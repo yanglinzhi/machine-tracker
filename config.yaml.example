@@ -1,0 +1,84 @@
+# MachineTracker 完整配置示例 (config.yaml.example)
+
+# ==========================================
+# 1. 机器注册表 (Machines)
+# ==========================================
+# 你可以注册多台机器，mt scan 默认使用 'local'。
+machines:
+  local:                          # 本地机器
+    id: "local-server-01"         # 唯一标识符
+    name: "我的开发机"             # 友好名称
+    scan_interval: "30m"          # 建议扫描间隔 (Cron/后台任务使用)
+
+  # 远程机器示例 (需配置 SSH 免密登录)
+  # web-server:
+  #   id: "web-prod-01"
+  #   name: "生产环境 Web 服务器"
+  #   ssh: "root@1.2.3.4"
+  #   scan_interval: "1h"
+
+# ==========================================
+# 2. 存储配置 (Storage)
+# ==========================================
+storage:
+  # 快照和数据的存储根目录
+  path: "~/.local/share/machine-tracker"
+  
+  # 快照保留策略：保留最近多少份快照，过期的会自动删除
+  keep_snapshots: 30
+  
+  # 是否压缩旧快照以节省空间 (暂未完全实现，预留配置)
+  compress_old: true
+
+# ==========================================
+# 3. 采集器配置 (Collectors)
+# ==========================================
+collectors:
+  # 启用的采集器列表。注释掉某一项将停止该维度的采集。
+  enabled:
+    - service_mapper    # 【核心】服务与进程溯源
+    - network           # 端口监听状态
+    - docker            # Docker 容器详情
+    - systemd           # Systemd 服务状态
+    - apt               # APT 软件包列表
+    - npm               # 全局 NPM 包
+    - pip               # Python PIP 包
+    - cron              # 定时任务
+    - filesystem        # 磁盘挂载与 fstab
+    - nginx             # Nginx 反向代理配置
+    - config_files      # 关键文件内容校验
+
+  # 针对特定采集器的详细配置
+  config_files:
+    # 监控哪些文件或目录的变动（计算 SHA256 指纹）
+    watch_paths:
+      - "/etc/nginx/"
+      - "/etc/docker/"
+      - "/etc/fstab"
+      - "/etc/ssh/sshd_config"
+      - "/etc/crontab"
+      - "~/.bashrc"
+      - "~/.zshrc"
+      - "~/.config/machine-tracker/config.yaml"
+
+# ==========================================
+# 4. 输出与报告配置 (Output)
+# ==========================================
+output:
+  # 默认报告输出格式: markdown | json | table
+  format: "markdown"
+  
+  # 变更日志文件的保存路径
+  changelog_path: "~/.local/share/machine-tracker/changelog.md"
+
+# ==========================================
+# 5. 风险评估规则 (Risk Rules - 预留)
+# ==========================================
+# 用于判断变更的风险等级 (🔴 HIGH, 🟡 MEDIUM, 🟢 LOW)
+# risk_rules:
+#   - pattern: "sshd_config"
+#     level: "HIGH"
+#     reason: "SSH 配置变动可能影响访问安全"
+#   - pattern: "port 22"
+#     level: "HIGH"
+#     reason: "SSH 端口变动"

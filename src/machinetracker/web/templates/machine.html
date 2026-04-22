@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}{{ machine.name }} 详情 - MachineTracker{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 2rem;">
+    <a href="/" style="color: #64748b; text-decoration: none;">&larr; 返回仪表盘</a>
+    <h1>{{ machine.name }}</h1>
+    <p style="color: #64748b;">ID: {{ machine.id }} | 主机名: {{ snapshot.hostname if snapshot else 'Unknown' }}</p>
+</div>
+
+{% if not snapshot %}
+    <div class="card">
+        <p>该机器尚无快照数据。请在终端运行 <code>mt scan</code> 进行首次采集。</p>
+    </div>
+{% else %}
+    <div class="card">
+        <h3>最后快照摘要</h3>
+        <p>采集时间: {{ snapshot.timestamp }}</p>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem;">
+            {% for name, data in snapshot.collectors.items() %}
+            <div style="border: 1px solid #e2e8f0; padding: 1rem; border-radius: 0.25rem;">
+                <h4 style="margin: 0; color: #475569;">{{ name }}</h4>
+                <p style="font-size: 1.5rem; font-weight: bold; margin: 0.5rem 0;">
+                    {% if name == 'network' %} {{ data.ports|length }} <span style="font-size: 0.8rem; font-weight: normal;">端口</span>
+                    {% elif name == 'apt' %} {{ data.packages|length }} <span style="font-size: 0.8rem; font-weight: normal;">包</span>
+                    {% elif name == 'service_mapper' %} {{ data.services|length }} <span style="font-size: 0.8rem; font-weight: normal;">服务</span>
+                    {% elif name == 'config_files' %} {{ data.files|length }} <span style="font-size: 0.8rem; font-weight: normal;">文件</span>
+                    {% else %} 已采集 {% endif %}
+                </p>
+            </div>
+            {% endfor %}
+        </div>
+        <div style="margin-top: 1.5rem;">
+            <a href="/machine/{{ machine_key }}/history" class="btn" style="background-color: #64748b;">查看所有历史快照对比</a>
+        </div>
+    </div>
+
+    <h2>服务画像</h2>
+    {% if 'service_mapper' in snapshot.collectors %}
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 1rem;">
+            {% for service in snapshot.collectors.service_mapper.services %}
+            <div class="card" style="margin-bottom: 0;">
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="font-weight: bold; font-size: 1.1rem;">端口 {{ service.port }}</span>
+                    <span class="badge" style="background-color: #e2e8f0;">{{ service.deployment.type }}</span>
+                </div>
+                <p style="margin: 0.5rem 0; font-family: monospace; background: #f1f5f9; padding: 0.25rem; font-size: 0.85rem;">
+                    {{ service.process or 'Unknown Process' }} (PID: {{ service.pid or 'N/A' }})
+                </p>
+                {% if service.deployment.type == 'docker' %}
+                    <p style="font-size: 0.85rem; margin-bottom: 0;"><strong>Container:</strong> {{ service.deployment.container_name }}</p>
+                    <p style="font-size: 0.85rem; margin-bottom: 0; color: #64748b;"><strong>Image:</strong> {{ service.deployment.image }}</p>
+                {% elif service.deployment.type == 'systemd' %}
+                    <p style="font-size: 0.85rem; margin-bottom: 0;"><strong>Unit:</strong> {{ service.deployment.unit }}</p>
+                {% elif service.deployment.type == 'process' %}
+                    <p style="font-size: 0.85rem; margin-bottom: 0; word-break: break-all;"><strong>CMD:</strong> {{ service.deployment.cmdline }}</p>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p>暂无服务溯源数据。</p>
+    {% endif %}
+{% endif %}
+{% endblock %}

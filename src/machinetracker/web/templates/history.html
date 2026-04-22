@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}历史记录 - {{ machine.name }}{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 2rem;">
+    <a href="/machine/{{ machine_key }}" style="color: #64748b; text-decoration: none;">&larr; 返回详情</a>
+    <h1>{{ machine.name }} 历史快照</h1>
+    <p>请选择两个快照进行对比（先选旧的，再选新的）</p>
+</div>
+
+<div class="card">
+    <form id="compareForm">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 40px;">选</th>
+                    <th>时间戳</th>
+                    <th>文件名</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in history %}
+                <tr>
+                    <td><input type="checkbox" name="snap" value="{{ entry.filename }}"></td>
+                    <td>{{ entry.timestamp }}</td>
+                    <td>{{ entry.filename }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <div style="margin-top: 1rem;">
+            <button type="button" onclick="compare()" class="btn">对比所选快照</button>
+        </div>
+    </form>
+</div>
+
+<script>
+function compare() {
+    const checked = document.querySelectorAll('input[name="snap"]:checked');
+    if (checked.length !== 2) {
+        alert("请选择且仅选择两个快照进行对比。");
+        return;
+    }
+    // 假设第一个选的是旧的，第二个是新的（按时间倒序排列）
+    // history 是倒序的，所以 checked[1] 是旧的，checked[0] 是新的
+    const t2 = checked[0].value;
+    const t1 = checked[1].value;
+    window.location.href = `/machine/{{ machine_key }}/diff/${t1}/${t2}`;
+}
+</script>
+{% endblock %}

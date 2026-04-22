@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}变更审计 - {{ machine.name }}{% endblock %}
+
+{% block content %}
+<style>
+    .diff-container { margin-top: 2rem; }
+    .collector-group { margin-bottom: 3rem; }
+    .collector-title { 
+        display: flex; align-items: center; gap: 0.5rem;
+        font-size: 1.5rem; color: #1e293b; border-bottom: 2px solid #e2e8f0;
+        padding-bottom: 0.5rem; margin-bottom: 1rem;
+    }
+    .change-item {
+        background: white; border: 1px solid #e2e8f0;
+        border-radius: 0.5rem; margin-bottom: 1rem; overflow: hidden;
+    }
+    .change-header {
+        padding: 0.75rem 1rem; background: #f8fafc;
+        display: flex; justify-content: space-between; align-items: center;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .change-body { padding: 1rem; }
+    .diff-row { display: flex; gap: 1rem; margin-bottom: 0.5rem; font-size: 0.9rem; align-items: flex-start; }
+    .field-name { font-weight: 600; min-width: 200px; color: #64748b; flex-shrink: 0; word-break: break-all; }
+    .diff-values { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+    .old-val { color: #991b1b; background: #fee2e2; padding: 0 4px; border-radius: 2px; text-decoration: line-through; }
+    .new-val { color: #166534; background: #dcfce7; padding: 0 4px; border-radius: 2px; }
+    .added-item { color: #166534; }
+    .removed-item { color: #991b1b; text-decoration: line-through; }
+
+    /* 风险样式 */
+    .change-item.risk-high { border: 2px solid #ef4444; }
+    .change-item.risk-high .change-header { background: #fee2e2; }
+    .risk-badge { 
+        font-size: 0.7rem; padding: 2px 6px; border-radius: 4px;
+        margin-left: 0.5rem; font-weight: bold;
+    }
+    .risk-HIGH { background: #ef4444; color: white; }
+    .risk-MEDIUM { background: #f59e0b; color: white; }
+    .risk-reason { font-size: 0.8rem; color: #ef4444; margin-top: 0.5rem; font-style: italic; }
+</style>
+
+<div style="margin-bottom: 2rem;">
+    <a href="/machine/{{ machine_key }}/history" style="color: #64748b; text-decoration: none;">&larr; 返回历史记录</a>
+    <h1>变更审计报告</h1>
+    <p style="color: #64748b;">审计范围: <code>{{ t1 }}</code> 至 <code>{{ t2 }}</code></p>
+</div>
+
+<div class="diff-container">
+{% if not diff %}
+    <div class="card"><p>所选时间段内未发现任何状态变更。</p></div>
+{% else %}
+    {% for collector, changes in diff.items() %}
+    <div class="collector-group">
+        <div class="collector-title">
+            <span>{{ collector|upper }}</span>
+            <span style="font-size: 0.9rem; font-weight: normal; color: #94a3b8;">({{ changes|length }} 处变更)</span>
+        </div>
+
+        {% for change in changes %}
+        <div class="change-item risk-{{ change.risk|lower }}">
+            <div class="change-header">
+                <div>
+                    <span style="font-weight: bold;">{{ change.item }}</span>
+                    {% if change.risk != 'LOW' %}
+                        <span class="risk-badge risk-{{ change.risk }}">{{ change.risk }} RISK</span>
+                    {% endif %}
+                </div>
+                <span class="badge badge-{{ change.type }}">{{ change.type|upper }}</span>
+            </div>
+            <div class="change-body">
+                {% if change.risk_reason %}
+                    <div class="risk-reason">⚠ 警报: {{ change.risk_reason }}</div>
+                {% endif %}
+
+                {% if change.type == 'changed' %}
+                    {% if change.old is mapping and change.new is mapping %}
+                        {# 对象级对比：只展示不相等的字段 #}
+                        {% for key in change.new.keys() %}
+                            {% if change.old.get(key) != change.new.get(key) %}
+                                <div class="diff-row">
+                                    <span class="field-name">{{ key }}:</span>
+                                    <div class="diff-values">
+                                        <span class="old-val">{{ change.old.get(key)|string }}</span>
+                                        <span style="color: #94a3b8;">&rarr;</span>
+                                        <span class="new-val">{{ change.new.get(key)|string }}</span>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <div class="diff-row">
+                            <span class="old-val">{{ change.old }}</span>
+                            <span style="color: #94a3b8;">&rarr;</span>
+                            <span class="new-val">{{ change.new }}</span>
+                        </div>
+                    {% endif %}
+                
+                {% elif change.type == 'added' %}
+                    <div class="added-item">
+                        {% if change.new is mapping %}
+                            {% for key, val in change.new.items() %}
+                                <div class="diff-row">
+                                    <span class="field-name">{{ key }}:</span>
+                                    <span>{{ val|string }}</span>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            {{ change.new }}
+                        {% endif %}
+                    </div>
+                
+                {% elif change.type == 'removed' %}
+                    <div class="removed-item">
+                        {{ change.old|string }}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endfor %}
+{% endif %}
+</div>
+{% endblock %}
