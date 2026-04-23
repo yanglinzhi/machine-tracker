@@ -1,5 +1,7 @@
 # MachineTracker (mt) — Industrial-Grade Machine State Tracking & Auditing System
 
+[简体中文](README.md) | [English](README_EN.md)
+
 > **The System Consistency Guardian for AI Agents. Record the present, track the changes, and eliminate the "black box" of AI operations.**
 
 MachineTracker is a full-dimensional system auditing tool designed specifically for collaboration between **Human Operators and AI Agents (e.g., Gemini, Claude, GPT)**.

@@ -1,5 +1,7 @@
 # MachineTracker (mt) — 工业级机器状态追踪与审计系统
 
+[简体中文](README.md) | [English](README_EN.md)
+
 > **面向 AI Agent 的系统一致性守护者。记录现状，追踪变化，消除 AI 运维的“黑盒”。**
 
 MachineTracker 是一个专门为**人类运维人员与 AI Agent (如 Gemini, Claude, GPT)** 协同工作设计的全维度系统审计工具。
