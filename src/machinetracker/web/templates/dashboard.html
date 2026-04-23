@@ -4,105 +4,402 @@
 
 {% block content %}
 <style>
+    .dashboard-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        margin-bottom: 2rem;
+    }
+
+    .machines-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+        gap: 1.5rem;
+    }
+
+    /* ── Machine Card ── */
+    .machine-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        overflow: hidden;
+        transition: all 0.3s;
+        position: relative;
+        animation: fadeInUp 0.4s ease both;
+    }
+
+    .machine-card:hover {
+        border-color: rgba(99, 102, 241, 0.35);
+        box-shadow: 0 16px 48px rgba(0,0,0,0.4), 0 0 0 1px rgba(99,102,241,0.1);
+        transform: translateY(-3px);
+    }
+
+    .machine-card.risk-high {
+        border-color: rgba(239, 68, 68, 0.4);
+    }
+
+    .machine-card.risk-high::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: 20px;
+        background: radial-gradient(ellipse at top right, rgba(239,68,68,0.06) 0%, transparent 60%);
+        pointer-events: none;
+    }
+
+    .machine-card.risk-high:hover {
+        box-shadow: 0 16px 48px rgba(0,0,0,0.4), 0 0 20px rgba(239,68,68,0.15);
+    }
+
+    .card-top {
+        padding: 1.5rem 1.5rem 1rem;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .card-hostname-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 0.75rem;
+    }
+
+    .machine-name {
+        font-size: 1.15rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        color: var(--text-primary);
+        margin: 0;
+    }
+
+    .machine-id-badge {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.7rem;
+        color: var(--text-muted);
+        background: rgba(255,255,255,0.04);
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        padding: 0.15rem 0.5rem;
+        flex-shrink: 0;
+        margin-left: 0.5rem;
+    }
+
+    .meta-row {
+        display: flex;
+        gap: 1rem;
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+    }
+
+    .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .meta-icon { opacity: 0.6; }
+
+    .card-body { padding: 1.25rem 1.5rem; }
+
+    /* ── Notification bar ── */
     .notification-bar {
-        background: #f0f9ff; border: 1px solid #bae6fd;
-        border-radius: 0.5rem; padding: 0.75rem 1rem;
-        margin-top: 1rem; display: flex; justify-content: space-between; align-items: center;
-        cursor: pointer; transition: all 0.2s;
+        border-radius: 10px;
+        padding: 0.85rem 1rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        background: rgba(99, 102, 241, 0.08);
+        border: 1px solid rgba(99, 102, 241, 0.2);
+        margin-bottom: 1rem;
     }
-    .notification-bar:hover { background: #e0f2fe; }
-    .notification-bar.high-risk { background: #fef2f2; border-color: #fecaca; }
-    .notification-bar.high-risk:hover { background: #fee2e2; }
-    
-    /* Modal 弹窗样式 */
+
+    .notification-bar:hover {
+        background: rgba(99, 102, 241, 0.14);
+        border-color: rgba(99, 102, 241, 0.4);
+    }
+
+    .notification-bar.high-risk {
+        background: rgba(239, 68, 68, 0.08);
+        border-color: rgba(239, 68, 68, 0.25);
+    }
+
+    .notification-bar.high-risk:hover {
+        background: rgba(239, 68, 68, 0.14);
+        border-color: rgba(239, 68, 68, 0.45);
+    }
+
+    .notif-left {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+
+    .notif-icon {
+        font-size: 1rem;
+        animation: ring 3s ease infinite;
+    }
+
+    @keyframes ring {
+        0%, 100% { transform: rotate(0deg); }
+        10% { transform: rotate(-10deg); }
+        20% { transform: rotate(10deg); }
+        30% { transform: rotate(-8deg); }
+        40% { transform: rotate(8deg); }
+        50% { transform: rotate(0deg); }
+    }
+
+    .notif-arrow {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        transition: transform 0.2s;
+    }
+
+    .notification-bar:hover .notif-arrow { transform: translateX(3px); }
+
+    .stable-bar {
+        border-radius: 10px;
+        padding: 0.85rem 1rem;
+        background: rgba(34, 197, 94, 0.05);
+        border: 1px dashed rgba(34, 197, 94, 0.2);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.83rem;
+        color: var(--green);
+        margin-bottom: 1rem;
+        opacity: 0.8;
+    }
+
+    .card-actions {
+        display: flex;
+        gap: 0.6rem;
+    }
+
+    /* ── Modal ── */
     .modal {
-        display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%;
-        background-color: rgba(0,0,0,0.5);
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        inset: 0;
+        background-color: rgba(0,0,0,0.7);
+        backdrop-filter: blur(8px);
+        animation: fadeInModal 0.2s ease;
     }
+
+    @keyframes fadeInModal {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
     .modal-content {
-        background-color: white; margin: 10% auto; padding: 2rem; border-radius: 0.75rem;
-        width: 80%; max-width: 800px; max-height: 70vh; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        background: #111827;
+        border: 1px solid rgba(255,255,255,0.1);
+        margin: 5% auto;
+        border-radius: 20px;
+        width: 90%;
+        max-width: 760px;
+        max-height: 80vh;
+        overflow-y: auto;
+        box-shadow: 0 25px 80px rgba(0,0,0,0.6);
+        animation: slideUp 0.25s ease;
     }
-    .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 1rem; margin-bottom: 1rem; }
-    .close-btn { font-size: 1.5rem; cursor: pointer; color: #94a3b8; }
-    .close-btn:hover { color: #1e293b; }
-    
-    .diff-list { font-size: 0.9rem; }
-    .diff-item { padding: 0.5rem 0; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; }
-    .risk-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; }
-    .dot-HIGH { background-color: #ef4444; box-shadow: 0 0 5px #ef4444; }
-    .dot-MEDIUM { background-color: #f59e0b; }
+
+    @keyframes slideUp {
+        from { transform: translateY(20px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.5rem 2rem;
+        border-bottom: 1px solid var(--border);
+        position: sticky;
+        top: 0;
+        background: #111827;
+        border-radius: 20px 20px 0 0;
+        z-index: 1;
+    }
+
+    .modal-title { font-size: 1rem; font-weight: 700; margin: 0; }
+
+    .close-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.06);
+        border: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: var(--text-secondary);
+        font-size: 1.1rem;
+        transition: all 0.2s;
+    }
+
+    .close-btn:hover {
+        background: rgba(239, 68, 68, 0.15);
+        border-color: rgba(239, 68, 68, 0.4);
+        color: var(--red);
+    }
+
+    .modal-body { padding: 1.5rem 2rem; }
+
+    .modal-timestamp {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        background: rgba(255,255,255,0.04);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 0.3rem 0.7rem;
+        margin-bottom: 1.5rem;
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    .collector-section {
+        margin-bottom: 1.5rem;
+    }
+
+    .collector-label {
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--text-muted);
+        border-left: 3px solid var(--accent);
+        padding-left: 0.6rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .diff-item {
+        padding: 0.6rem 0.75rem;
+        border-radius: 8px;
+        margin-bottom: 0.4rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: rgba(255,255,255,0.02);
+        border: 1px solid var(--border);
+        font-size: 0.85rem;
+        transition: background 0.15s;
+    }
+
+    .diff-item:hover { background: rgba(255,255,255,0.04); }
+
+    .risk-dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 6px;
+        flex-shrink: 0;
+    }
+
+    .dot-HIGH {
+        background-color: var(--red);
+        box-shadow: 0 0 8px var(--red);
+        animation: pulse-dot 1.5s infinite;
+    }
+
+    .dot-MEDIUM { background-color: var(--yellow); }
+    .dot-LOW { background-color: var(--text-muted); }
+
+    .modal-footer {
+        padding: 1rem 2rem 1.5rem;
+        text-align: center;
+    }
 </style>
 
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-    <h1>机器概览</h1>
+<div class="dashboard-header fade-in">
+    <div class="page-header" style="margin-bottom:0;">
+        <h1>机器概览</h1>
+        <p>实时监控所有受管机器的状态变更</p>
+    </div>
 </div>
 
-<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 1.5rem;">
+<div class="machines-grid">
     {% for machine in machines %}
-    <div class="card" style="position: relative; {% if machine.has_high_risk %}border-color: #fecaca; box-shadow: 0 0 10px rgba(239, 68, 68, 0.1);{% endif %}">
-        <h2 style="margin-top: 0;">{{ machine.name }}</h2>
-        <p style="color: #64748b; font-size: 0.9rem;">ID: {{ machine.id }}</p>
-        
-        <div style="margin: 1rem 0;">
-            <p><strong>主机名:</strong> {{ machine.hostname }}</p>
-            <p><strong>最后扫描:</strong> {{ machine.latest_timestamp or '从未扫描' }}</p>
+    <div class="machine-card {% if machine.has_high_risk %}risk-high{% endif %}"
+         style="animation-delay: {{ loop.index0 * 0.08 }}s;">
+        <div class="card-top">
+            <div class="card-hostname-row">
+                <h2 class="machine-name">{{ machine.name }}</h2>
+                <span class="machine-id-badge">{{ machine.id[:8] }}</span>
+            </div>
+            <div class="meta-row">
+                <span class="meta-item">
+                    <span class="meta-icon">🖥</span>
+                    {{ machine.hostname }}
+                </span>
+                <span class="meta-item">
+                    <span class="meta-icon">🕐</span>
+                    {{ machine.latest_timestamp or '从未扫描' }}
+                </span>
+            </div>
         </div>
 
-        {% if machine.latest_change %}
-            <div class="notification-bar {% if machine.has_high_risk %}high-risk{% endif %}" 
-                 onclick="showModal('{{ machine.key }}')">
-                <div>
-                    <span style="font-size: 1.1rem;">🔔</span>
-                    <span style="font-weight: 600; color: {% if machine.has_high_risk %}#991b1b{% else %}#0369a1{% endif %};">
-                        最近检测到 {{ machine.latest_change.count }} 处变更
-                    </span>
+        <div class="card-body">
+            {% if machine.latest_change %}
+                <div class="notification-bar {% if machine.has_high_risk %}high-risk{% endif %}"
+                     onclick="showModal('{{ machine.key }}')">
+                    <div class="notif-left">
+                        <span class="notif-icon">🔔</span>
+                        <span style="color: {% if machine.has_high_risk %}var(--red){% else %}var(--accent){% endif %};">
+                            检测到 {{ machine.latest_change.count }} 处变更
+                        </span>
+                    </div>
+                    <span class="notif-arrow">查看 →</span>
                 </div>
-                <span style="font-size: 0.8rem; color: #94a3b8;">点击查看 &rarr;</span>
-            </div>
-        {% else %}
-            <div style="padding: 0.75rem 1rem; border: 1px dashed #e2e8f0; border-radius: 0.5rem; color: #94a3b8; font-size: 0.9rem; margin-top: 1rem; text-align: center;">
-                最近状态稳定，无变更记录
-            </div>
-        {% endif %}
+            {% else %}
+                <div class="stable-bar">
+                    <span>✓</span>
+                    <span>状态稳定，无变更记录</span>
+                </div>
+            {% endif %}
 
-        <div style="display: flex; gap: 0.5rem; margin-top: 1.5rem;">
-            <a href="/machine/{{ machine.key }}" class="btn">全景详情</a>
-            <a href="/machine/{{ machine.key }}/history" class="btn" style="background-color: #64748b;">快照历史</a>
+            <div class="card-actions">
+                <a href="/machine/{{ machine.key }}" class="btn">🔍 全景详情</a>
+                <a href="/machine/{{ machine.key }}/history" class="btn btn-secondary">📋 快照历史</a>
+            </div>
         </div>
     </div>
 
-    <!-- Modal for this machine -->
     {% if machine.latest_change %}
     <div id="modal-{{ machine.key }}" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 style="margin: 0;">最近变更消息 ({{ machine.name }})</h3>
-                <span class="close-btn" onclick="closeModal('{{ machine.key }}')">&times;</span>
+                <h3 class="modal-title">最近变更报告 — {{ machine.name }}</h3>
+                <div class="close-btn" onclick="closeModal('{{ machine.key }}')">✕</div>
             </div>
-            <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 1.5rem;">
-                快照时间: {{ machine.latest_change.timestamp }}
-            </p>
-            <div class="diff-list">
+            <div class="modal-body">
+                <div class="modal-timestamp">
+                    🕐 {{ machine.latest_change.timestamp }}
+                </div>
                 {% for collector, changes in machine.latest_change.diff.items() %}
-                    <div style="margin-bottom: 1.5rem;">
-                        <h4 style="color: #475569; margin-bottom: 0.5rem; text-transform: capitalize; border-left: 3px solid #cbd5e1; padding-left: 8px;">
-                            {{ collector }}
-                        </h4>
+                    <div class="collector-section">
+                        <div class="collector-label">{{ collector }}</div>
                         {% for change in changes %}
                             <div class="diff-item">
-                                <span>
+                                <span style="display:flex;align-items:center;">
                                     <span class="risk-dot dot-{{ change.risk }}"></span>
-                                    {{ change.item }}
+                                    <span>{{ change.item }}</span>
                                 </span>
-                                <span class="badge badge-{{ change.type }}" style="font-size: 0.6rem;">{{ change.type|upper }}</span>
+                                <span class="badge badge-{{ change.type }}">{{ change.type|upper }}</span>
                             </div>
                         {% endfor %}
                     </div>
                 {% endfor %}
             </div>
-            <div style="margin-top: 1rem; text-align: center;">
-                <a href="/machine/{{ machine.key }}/history" class="btn">进入历史记录详审</a>
+            <div class="modal-footer">
+                <a href="/machine/{{ machine.key }}/history" class="btn">进入历史记录详审 →</a>
             </div>
         </div>
     </div>
@@ -112,16 +409,28 @@
 
 <script>
 function showModal(key) {
-    document.getElementById('modal-' + key).style.display = "block";
+    const modal = document.getElementById('modal-' + key);
+    modal.style.display = "block";
+    document.body.style.overflow = "hidden";
 }
 function closeModal(key) {
-    document.getElementById('modal-' + key).style.display = "none";
+    const modal = document.getElementById('modal-' + key);
+    modal.style.display = "none";
+    document.body.style.overflow = "";
 }
-// 点击空白处关闭
 window.onclick = function(event) {
-    if (event.target.className === 'modal') {
+    if (event.target.classList.contains('modal')) {
         event.target.style.display = "none";
+        document.body.style.overflow = "";
     }
 }
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        document.querySelectorAll('.modal').forEach(m => {
+            m.style.display = "none";
+        });
+        document.body.style.overflow = "";
+    }
+});
 </script>
 {% endblock %}

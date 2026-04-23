@@ -4,8 +4,8 @@ from typing import Any, Dict, List, Optional
 from .base import BaseCollector
 
 class NetworkCollector(BaseCollector):
+    """网络端口采集器 (支持 IPv4/IPv6 识别)"""
     name = "network"
-    """网络端口采集器"""
 
     def is_available(self) -> bool:
         try:
@@ -16,11 +16,9 @@ class NetworkCollector(BaseCollector):
 
     def collect(self) -> Dict[str, Any]:
         """
-        采集正在监听的 TCP 端口
-        命令: ss -tlnp
+        采集正在监听的 TCP 端口 (IPv4 & IPv6)
         """
         try:
-            # -t: tcp, -l: listening, -n: numeric, -p: process
             result = subprocess.run(["ss", "-tlnp"], capture_output=True, text=True, check=True)
             return self._parse_ss_output(result.stdout)
         except subprocess.CalledProcessError as e:
@@ -32,28 +30,31 @@ class NetworkCollector(BaseCollector):
         if not lines:
             return {"ports": []}
 
-        # 跳过表头
         for line in lines[1:]:
             parts = re.split(r'\s+', line.strip())
-            if len(parts) < 6:
+            if len(parts) < 4:
                 continue
             
             # Local Address:Port
             local_addr_port = parts[3]
-            if ':' not in local_addr_port:
-                continue
-                
-            port_str = local_addr_port.split(':')[-1]
+            
+            # 识别协议并提取端口
+            protocol = "ipv4"
+            if local_addr_port.startswith("["): # IPv6 格式如 [::]:22
+                protocol = "ipv6"
+                # 寻找最后一个冒号之后的数字
+                port_str = local_addr_port.split(']')[-1].lstrip(':')
+            else:
+                port_str = local_addr_port.split(':')[-1]
+
             try:
                 port = int(port_str)
             except ValueError:
                 continue
 
-            # Process info: users:(("node",pid=45231,fd=11))
+            # 进程溯源逻辑 (复用之前的增强解析)
             pid = None
             process_name = None
-            
-            # 搜索包含 "users:(" 的部分，而不是固定索引
             process_info = None
             for p in parts[4:]:
                 if "users:(" in p:
@@ -61,25 +62,21 @@ class NetworkCollector(BaseCollector):
                     break
             
             if process_info:
-                # 提取第一个匹配的 pid
                 pid_match = re.search(r'pid=(\d+)', process_info)
-                if pid_match:
-                    pid = int(pid_match.group(1))
-                
-                # 提取进程名 (双引号内的内容)
+                if pid_match: pid = int(pid_match.group(1))
                 name_match = re.search(r'"([^"]+)"', process_info)
-                if name_match:
-                    process_name = name_match.group(1)
+                if name_match: process_name = name_match.group(1)
 
             ports.append({
                 "port": port,
                 "address": local_addr_port,
+                "protocol": protocol, # 新增协议字段
                 "pid": pid,
                 "process": process_name
             })
 
-        # 按端口排序
-        ports.sort(key=lambda x: x['port'])
+        # 排序：先按端口，再按协议
+        ports.sort(key=lambda x: (x['port'], x['protocol']))
         
         return {
             "ports": ports,
@@ -88,17 +85,21 @@ class NetworkCollector(BaseCollector):
 
     def diff(self, old_data: Optional[Dict[str, Any]], new_data: Dict[str, Any]) -> List[Dict[str, Any]]:
         changes = []
-        old_ports = {p['port']: p for p in old_data.get('ports', [])} if old_data else {}
-        new_ports = {p['port']: p for p in new_data.get('ports', [])}
+        
+        # 核心改进：使用 (端口, 地址) 作为唯一 Key
+        def get_key(p): return f"{p['port']}-{p['address']}"
+        
+        old_ports = {get_key(p): p for p in old_data.get('ports', [])} if old_data else {}
+        new_ports = {get_key(p): p for p in new_data.get('ports', [])}
 
-        for port, data in new_ports.items():
-            if port not in old_ports:
-                changes.append({"type": "added", "item": f"Port {port}", "new": data})
-            elif old_ports[port] != data:
-                changes.append({"type": "changed", "item": f"Port {port}", "old": old_ports[port], "new": data})
+        for key, data in new_ports.items():
+            if key not in old_ports:
+                changes.append({"type": "added", "item": f"Port {data['port']} ({data['protocol']}) on {data['address']}", "new": data})
+            elif old_ports[key] != data:
+                changes.append({"type": "changed", "item": f"Port {data['port']} ({data['protocol']})", "old": old_ports[key], "new": data})
 
-        for port, data in old_ports.items():
-            if port not in new_ports:
-                changes.append({"type": "removed", "item": f"Port {port}", "old": data})
+        for key, data in old_ports.items():
+            if key not in new_ports:
+                changes.append({"type": "removed", "item": f"Port {data['port']} ({data['protocol']}) on {data['address']}", "old": data})
 
         return changes

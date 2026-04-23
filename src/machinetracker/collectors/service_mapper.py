@@ -41,6 +41,7 @@ class ServiceMapperCollector(BaseCollector):
             
             profile = {
                 "port": port,
+                "protocol": port_info.get('protocol', 'ipv4'), # 传递协议字段
                 "process": process,
                 "pid": pid,
                 "deployment": {"type": "unknown"}

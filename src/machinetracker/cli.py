@@ -3,6 +3,7 @@ import os
 import shutil
 import json
 import logging
+import sys
 from pathlib import Path
 from importlib import resources
 
@@ -23,6 +24,12 @@ from .logger import setup_logging, get_logger
 
 logger = get_logger("cli")
 
+def ensure_root():
+    """检查是否具有 root 权限，若无则报错退出"""
+    if os.getuid() != 0:
+        click.echo(click.style("错误: 此操作必须以 root 权限运行（建议使用 sudo）。", fg="red", bold=True))
+        sys.exit(1)
+
 @click.group()
 @click.option('-v', '--verbose', is_flag=True, help="显示详细调试日志")
 def main(verbose):
@@ -32,7 +39,8 @@ def main(verbose):
 @main.command()
 @click.option('--force', is_flag=True, help="是否覆盖已有的配置文件")
 def init(force):
-    """初始化 MachineTracker 配置与存储"""
+    """初始化 MachineTracker 配置与存储 (需要 sudo)"""
+    ensure_root()
     config_dir = get_default_config_path().parent
     data_dir = get_default_data_dir()
     
@@ -44,9 +52,7 @@ def init(force):
         logger.info(f"配置文件已存在: {config_file}")
         return
 
-    # 安全地从包内资源读取默认配置
     try:
-        # Python 3.9+ 推荐方式
         resource_path = resources.files('machinetracker.resources').joinpath('default_config.yaml')
         with resource_path.open('rb') as src:
             with open(config_file, "wb") as dst:
@@ -58,11 +64,32 @@ def init(force):
             f.write("# MachineTracker Configuration\n")
         logger.warning(f"已回退并创建空白配置文件: {config_file}")
 
-@main.command()
+@main.group()
 def config():
+    """查看或管理当前配置与数据路径"""
+    pass
+
+@config.command(name="show")
+def config_show():
     """查看当前配置与数据路径"""
     click.echo(f"配置文件: {get_default_config_path()}")
     click.echo(f"数据存储: {get_default_data_dir()}")
+
+@config.command(name="edit")
+def config_edit():
+    """使用系统编辑器一键修改配置 (需要 sudo)"""
+    ensure_root()
+    config_file = get_default_config_path()
+    
+    # 自动探测系统编辑器
+    editor = os.environ.get("EDITOR") or "vim"
+    if not shutil.which(editor):
+        editor = "nano" if shutil.which("nano") else "vi"
+    
+    import subprocess
+    click.echo(f"正在使用 {editor} 打开配置文件...")
+    subprocess.run([editor, str(config_file)])
+    logger.info("配置修改完成。建议运行 'sudo mt scan' 验证配置。")
 
 @main.command()
 @click.option('--machine', default='local', help="指定要扫描的机器名")
@@ -70,7 +97,8 @@ def config():
 @click.option('--force-save', is_flag=True, help="即使没有变更也保存快照")
 @click.option('--no-save', is_flag=True, help="不保存快照")
 def scan(machine, output_json, force_save, no_save):
-    """执行扫描并对比状态"""
+    """执行状态采集与差分审计 (需要 sudo)"""
+    ensure_root()
     try:
         app_config = load_config(str(get_default_config_path()))
     except Exception as e:
@@ -81,13 +109,15 @@ def scan(machine, output_json, force_save, no_save):
         logger.error(f"机器 '{machine}' 未定义。")
         return
 
-    m_id = app_config.machines[machine].id
-    manager = CollectorManager(app_config)
+    m_conf = app_config.machines[machine]
+    m_id = m_conf.id
     store = SnapshotStore(app_config)
     
     if not output_json: logger.info(f"开始扫描: {machine}...")
     
     old_snap = store.get_latest_snapshot(m_id)
+    # 统一执行本地采集逻辑
+    manager = CollectorManager(app_config)
     new_snap = manager.run_all(m_id)
     
     diff = Differ(app_config).compare(old_snap, new_snap)
@@ -99,7 +129,6 @@ def scan(machine, output_json, force_save, no_save):
         elif not diff: logger.info("状态未改变。")
         else: click.echo(Reporter().generate_summary(diff))
 
-    # 智能保存逻辑：有变更才存，或者强制保存
     if not no_save:
         if diff or not old_snap or force_save:
             path = store.save_snapshot(m_id, new_snap)
@@ -108,11 +137,71 @@ def scan(machine, output_json, force_save, no_save):
             if not output_json: logger.info("检测到状态无变更，跳过保存。")
 
 @main.command()
+@click.option('--machine', default='local', help="指定要查看的机器名称")
+@click.option('--collector', help="只显示特定采集器的内容")
+def show(machine, collector):
+    """查看机器的当前状态 (最新快照)"""
+    config_path = get_default_config_path()
+    try:
+        app_config = load_config(str(config_path))
+    except Exception as e:
+        logger.error(f"加载配置失败: {e}")
+        return
+
+    if machine not in app_config.machines:
+        logger.error(f"机器 '{machine}' 未在配置中定义。")
+        return
+
+    m_id = app_config.machines[machine].id
+    store = SnapshotStore(app_config)
+    snapshot = store.get_latest_snapshot(m_id)
+    
+    if not snapshot:
+        click.echo("没有找到快照。请先运行 'sudo mt scan'。")
+        return
+        
+    if collector:
+        data = snapshot.get("collectors", {}).get(collector)
+        if data:
+            click.echo(json.dumps(data, indent=2, ensure_ascii=False))
+        else:
+            click.echo(f"找不到采集器 '{collector}' 的数据。")
+    else:
+        # 显示简要摘要
+        click.echo(f"机器: {machine} (ID: {m_id})")
+        click.echo(f"主机名: {snapshot.get('hostname')}")
+        click.echo(f"快照时间: {snapshot.get('timestamp')}")
+        click.echo("\n采集器数据摘要:")
+        for name, data in snapshot.get("collectors", {}).items():
+            summary = "已采集"
+            if name == "network": summary = f"{len(data.get('ports', []))} 个监听端口"
+            elif name == "apt": summary = f"{len(data.get('packages', {}))} 个软件包"
+            elif name == "service_mapper": summary = f"{len(data.get('services', []))} 个服务"
+            elif name == "config_files": summary = f"{len(data.get('files', {}))} 个监控文件"
+            click.echo(f"  - {name}: {summary}")
+
+@main.command()
+def machines():
+    """查看已注册的机器列表"""
+    try:
+        app_config = load_config(str(get_default_config_path()))
+    except Exception as e:
+        logger.error(f"加载配置失败: {e}")
+        return
+        
+    click.echo("已注册的机器:")
+    for name, m in app_config.machines.items():
+        click.echo(f"- {name}: {m.name} [ID: {m.id}] (本地)")
+
+@main.command()
 @click.option('--machine', default='local', help="机器名")
 @click.option('--limit', default=10, help="显示数量")
 def history(machine, limit):
     """查看扫描历史记录"""
     app_config = load_config(str(get_default_config_path()))
+    if machine not in app_config.machines:
+        logger.error(f"机器 '{machine}' 未定义。")
+        return
     m_id = app_config.machines[machine].id
     history_list = SnapshotStore(app_config).get_history(m_id, limit)
     for h in history_list:
@@ -123,7 +212,7 @@ def history(machine, limit):
 @click.option('--host', default='127.0.0.1')
 @click.pass_context
 def web(ctx, port, host):
-    """Web 监控面板管理"""
+    """Web 监控面板展示 (普通用户权限即可)"""
     if ctx.invoked_subcommand is None:
         try:
             import uvicorn
@@ -136,6 +225,7 @@ def web(ctx, port, host):
 @web.command()
 def install():
     """安装 Systemd 服务 (需要 sudo)"""
+    ensure_root()
     import getpass
     user = os.environ.get("SUDO_USER", getpass.getuser())
     SystemdManager(user).install_web_service()
@@ -143,25 +233,29 @@ def install():
 
 @web.command()
 def start():
-    """启动 Web 服务"""
+    """启动 Web 服务 (需要 sudo)"""
+    ensure_root()
     SystemdManager("").manage_service("start", WEB_SERVICE_NAME)
-    logger.info("Web 服务已启动指令已发出。")
+    logger.info("Web 服务已启动。")
 
 @web.command()
 def stop():
-    """停止 Web 服务"""
+    """停止 Web 服务 (需要 sudo)"""
+    ensure_root()
     SystemdManager("").manage_service("stop", WEB_SERVICE_NAME)
     logger.info("Web 服务已停止。")
 
 @web.command()
 def restart():
-    """重启 Web 服务"""
+    """重启 Web 服务 (需要 sudo)"""
+    ensure_root()
     SystemdManager("").manage_service("restart", WEB_SERVICE_NAME)
     logger.info("Web 服务已重启。")
 
 @main.group()
 def log():
-    """查看系统日志"""
+    """查看系统日志 (通常需要 sudo)"""
+    ensure_root()
     pass
 
 @log.command(name="web")
@@ -186,13 +280,14 @@ def log_scan(follow, lines):
 
 @main.group()
 def cron():
-    """自动化定时扫描管理"""
+    """自动化定时扫描管理 (需要 sudo)"""
+    ensure_root()
     pass
 
 @cron.command(name="install")
 @click.option('--interval', default="10m")
 def cron_install(interval):
-    """安装定时器 (需要 sudo)"""
+    """安装定时器"""
     import getpass
     user = os.environ.get("SUDO_USER", getpass.getuser())
     SystemdManager(user).install_scan_timer(interval)

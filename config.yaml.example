@@ -1,84 +1,64 @@
-# MachineTracker 完整配置示例 (config.yaml.example)
+# MachineTracker (mt) 配置文件示例
+# ---------------------------------------------------------
+# 说明：此文件为配置模板。初始化后，你的私有配置位于：
+# ~/.config/machine-tracker/config.yaml
 
-# ==========================================
-# 1. 机器注册表 (Machines)
-# ==========================================
-# 你可以注册多台机器，mt scan 默认使用 'local'。
+# 1. 机器定义 (Machines)
+# 目前版本专注于本地审计，通常保留 'local' 即可。
 machines:
-  local:                          # 本地机器
-    id: "local-server-01"         # 唯一标识符
-    name: "我的开发机"             # 友好名称
-    scan_interval: "30m"          # 建议扫描间隔 (Cron/后台任务使用)
+  local:
+    id: "local-server"            # 机器唯一标识
+    name: "生产环境-01"            # 在 Web 界面显示的友好名称
+    scan_interval: "10m"          # 后台自动扫描间隔 (由 mt cron 管理)
 
-  # 远程机器示例 (需配置 SSH 免密登录)
-  # web-server:
-  #   id: "web-prod-01"
-  #   name: "生产环境 Web 服务器"
-  #   ssh: "root@1.2.3.4"
-  #   scan_interval: "1h"
-
-# ==========================================
-# 2. 存储配置 (Storage)
-# ==========================================
+# 2. 存储管理 (Storage)
 storage:
-  # 快照和数据的存储根目录
-  path: "~/.local/share/machine-tracker"
-  
-  # 快照保留策略：保留最近多少份快照，过期的会自动删除
-  keep_snapshots: 30
-  
-  # 是否压缩旧快照以节省空间 (暂未完全实现，预留配置)
-  compress_old: true
+  path: "~/.local/share/machine-tracker"  # 快照数据库存放路径
+  keep_snapshots: 50                       # 自动清理：保留最近 50 份快照
+  compress_old: true                       # 开启 Gzip 压缩 (空间占用降低 85%)
 
-# ==========================================
-# 3. 采集器配置 (Collectors)
-# ==========================================
+# 3. 采集器定义 (Collectors)
 collectors:
-  # 启用的采集器列表。注释掉某一项将停止该维度的采集。
-  enabled:
-    - service_mapper    # 【核心】服务与进程溯源
-    - network           # 端口监听状态
-    - docker            # Docker 容器详情
-    - systemd           # Systemd 服务状态
-    - apt               # APT 软件包列表
-    - npm               # 全局 NPM 包
-    - pip               # Python PIP 包
-    - cron              # 定时任务
-    - filesystem        # 磁盘挂载与 fstab
-    - nginx             # Nginx 反向代理配置
-    - config_files      # 关键文件内容校验
+  # 启用的维度。若不需要某项，直接将其从列表中删除即可。
+  enabled: 
+    - service_mapper    # 【核心】端口与服务溯源
+    - apt               # APT 软件包监控
+    - docker            # Docker 容器审计
+    - systemd           # 系统服务单元追踪
+    - network           # 端口监听扫描
+    - nginx             # Nginx 反向代理画像
+    - cron              # 定时任务监控
+    - filesystem        # 磁盘分区与挂载点
+    - npm               # Node.js 全局包
+    - pip               # Python 软件包
+    - config_files      # 关键配置文件 Hash 校验
 
-  # 针对特定采集器的详细配置
+  # 针对特定采集器的参数
   config_files:
-    # 监控哪些文件或目录的变动（计算 SHA256 指纹）
-    watch_paths:
+    watch_paths:        # 你最关心的配置文件或目录
       - "/etc/nginx/"
-      - "/etc/docker/"
       - "/etc/fstab"
-      - "/etc/ssh/sshd_config"
-      - "/etc/crontab"
+      - "/etc/shadow"
+      - "/etc/sudoers"
       - "~/.bashrc"
-      - "~/.zshrc"
-      - "~/.config/machine-tracker/config.yaml"
 
-# ==========================================
-# 4. 输出与报告配置 (Output)
-# ==========================================
+# 4. 风险评估引擎 (Risk Assessment)
+# 当变更项匹配以下正则表达式时，报告中将标记红色警告 (🔴 HIGH RISK)
+risk_rules:
+  - pattern: "sshd_config|/etc/ssh"
+    level: "HIGH"
+    reason: "SSH 关键配置变动，可能影响系统远程访问安全性。"
+  - pattern: "sudoers|/etc/sudo|/etc/shadow"
+    level: "HIGH"
+    reason: "检测到权限提升或账号敏感文件变更，请务必核实。"
+  - pattern: "passwd|shadow|group"
+    level: "HIGH"
+    reason: "系统账号或密码数据库发生变动。"
+  - pattern: "crontab|/etc/cron"
+    level: "MEDIUM"
+    reason: "定时任务变动，请检查是否存在异常的后台计划。"
+
+# 5. 输出选项 (Output)
 output:
-  # 默认报告输出格式: markdown | json | table
   format: "markdown"
-  
-  # 变更日志文件的保存路径
   changelog_path: "~/.local/share/machine-tracker/changelog.md"
-
-# ==========================================
-# 5. 风险评估规则 (Risk Rules - 预留)
-# ==========================================
-# 用于判断变更的风险等级 (🔴 HIGH, 🟡 MEDIUM, 🟢 LOW)
-# risk_rules:
-#   - pattern: "sshd_config"
-#     level: "HIGH"
-#     reason: "SSH 配置变动可能影响访问安全"
-#   - pattern: "port 22"
-#     level: "HIGH"
-#     reason: "SSH 端口变动"

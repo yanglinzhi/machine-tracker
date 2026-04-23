@@ -3,64 +3,280 @@
 {% block title %}{{ machine.name }} 详情 - MachineTracker{% endblock %}
 
 {% block content %}
-<div style="margin-bottom: 2rem;">
-    <a href="/" style="color: #64748b; text-decoration: none;">&larr; 返回仪表盘</a>
+<style>
+    .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 1rem;
+        margin: 1.25rem 0;
+    }
+
+    .stat-card {
+        background: rgba(255,255,255,0.03);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 1.25rem;
+        text-align: center;
+        transition: all 0.2s;
+    }
+
+    .stat-card:hover {
+        border-color: rgba(99,102,241,0.3);
+        background: rgba(99,102,241,0.06);
+    }
+
+    .stat-name {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--text-muted);
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        background: linear-gradient(135deg, var(--text-primary), var(--text-secondary));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        line-height: 1;
+    }
+
+    .stat-unit {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        margin-top: 0.25rem;
+    }
+
+    /* ── Service cards ── */
+    .services-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+        gap: 1rem;
+    }
+
+    .service-card {
+        background: rgba(255,255,255,0.03);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        overflow: hidden;
+        transition: all 0.2s;
+    }
+
+    .service-card:hover {
+        border-color: rgba(99,102,241,0.3);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+        transform: translateY(-2px);
+    }
+
+    .service-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--border);
+        background: rgba(255,255,255,0.02);
+    }
+
+    .port-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--accent);
+    }
+
+    .deploy-type {
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        padding: 0.25rem 0.6rem;
+        border-radius: 6px;
+        border: 1px solid;
+    }
+
+    .deploy-docker {
+        background: rgba(6, 182, 212, 0.1);
+        color: var(--cyan);
+        border-color: rgba(6, 182, 212, 0.3);
+    }
+
+    .deploy-systemd {
+        background: rgba(99, 102, 241, 0.1);
+        color: var(--accent);
+        border-color: rgba(99, 102, 241, 0.3);
+    }
+
+    .deploy-process {
+        background: rgba(245, 158, 11, 0.1);
+        color: var(--yellow);
+        border-color: rgba(245, 158, 11, 0.3);
+    }
+
+    .service-body { padding: 1rem 1.25rem; }
+
+    .service-cmd {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        background: rgba(0,0,0,0.3);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 0.6rem 0.9rem;
+        margin: 0.75rem 0;
+        word-break: break-all;
+        white-space: pre-wrap;
+    }
+
+    .service-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+    }
+
+    .service-meta-row {
+        display: flex;
+        gap: 0.5rem;
+        font-size: 0.82rem;
+    }
+
+    .service-meta-key {
+        color: var(--text-muted);
+        font-weight: 600;
+        min-width: 80px;
+        flex-shrink: 0;
+    }
+
+    .service-meta-val {
+        color: var(--text-secondary);
+        word-break: break-all;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        color: var(--text-muted);
+    }
+
+    .empty-state .empty-icon { font-size: 3rem; margin-bottom: 1rem; opacity: 0.5; }
+    .empty-state p { margin: 0; font-size: 0.9rem; }
+</style>
+
+<div class="page-header fade-in">
+    <a href="/" class="back-link">← 返回仪表盘</a>
     <h1>{{ machine.name }}</h1>
-    <p style="color: #64748b;">ID: {{ machine.id }} | 主机名: {{ snapshot.hostname if snapshot else 'Unknown' }}</p>
+    <p>ID: {{ machine.id }} &nbsp;·&nbsp; 主机名: {{ snapshot.hostname if snapshot else 'Unknown' }}</p>
 </div>
 
 {% if not snapshot %}
-    <div class="card">
-        <p>该机器尚无快照数据。请在终端运行 <code>mt scan</code> 进行首次采集。</p>
+    <div class="card fade-in">
+        <div class="empty-state">
+            <div class="empty-icon">🤖</div>
+            <p>该机器尚无快照数据。<br>请在终端运行 <code>mt scan</code> 进行首次采集。</p>
+        </div>
+    </div>
+{% else %}
+
+<div class="card fade-in">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem;">
+        <h3>最后快照摘要</h3>
+        <code style="font-size:0.78rem;">{{ snapshot.timestamp }}</code>
+    </div>
+
+    <div class="stat-grid">
+        {% for name, data in snapshot.collectors.items() %}
+        <div class="stat-card">
+            <div class="stat-name">{{ name }}</div>
+            <div class="stat-value">
+                {% if name == 'network' %}{{ data.ports|length }}
+                {% elif name == 'apt' %}{{ data.packages|length }}
+                {% elif name == 'service_mapper' %}{{ data.services|length }}
+                {% elif name == 'config_files' %}{{ data.files|length }}
+                {% else %}—{% endif %}
+            </div>
+            <div class="stat-unit">
+                {% if name == 'network' %}端口
+                {% elif name == 'apt' %}软件包
+                {% elif name == 'service_mapper' %}服务
+                {% elif name == 'config_files' %}文件
+                {% else %}已采集{% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div style="margin-top:1rem;">
+        <a href="/machine/{{ machine_key }}/history" class="btn btn-secondary">📋 查看所有历史快照对比</a>
+    </div>
+</div>
+<h2>🗺 服务全景溯源</h2>
+{% if 'service_mapper' in snapshot.collectors %}
+    <div class="services-grid">
+        {# 按端口分组展示 #}
+        {% for port, items in snapshot.collectors.service_mapper.services|groupby('port') %}
+        {% set service = items[0] %} {# 取组内第一个作为基础信息 #}
+        {% set protocols = items|map(attribute='protocol')|list %}
+
+        <div class="service-card fade-in" style="animation-delay:{{ loop.index0 * 0.06 }}s;">
+            <div class="service-header">
+                <span class="port-badge">
+                    ⚡ :{{ port }} 
+                    <span style="font-size:0.6rem; opacity:0.6; margin-left:4px;">
+                        {{ protocols|join(' | ') }}
+                    </span>
+                </span>
+                <span class="deploy-type deploy-{{ service.deployment.type }}">
+                    {% if service.deployment.type == 'docker' %}🐳 Docker
+                    {% elif service.deployment.type == 'systemd' %}⚙ Systemd
+                    {% else %}🔧 Process{% endif %}
+                </span>
+            </div>
+            <div class="service-body">
+... Applied fuzzy match at line 208-218.
+
+                <div class="service-cmd">{{ service.process or 'Unknown Process' }}  PID: {{ service.pid or 'N/A' }}</div>
+                <div class="service-meta">
+                    {% if service.deployment.type == 'docker' %}
+                        <div class="service-meta-row">
+                            <span class="service-meta-key">Container</span>
+                            <span class="service-meta-val">{{ service.deployment.container_name }}</span>
+                        </div>
+                        <div class="service-meta-row">
+                            <span class="service-meta-key">Image</span>
+                            <span class="service-meta-val">{{ service.deployment.image }}</span>
+                        </div>
+                    {% elif service.deployment.type == 'systemd' %}
+                        <div class="service-meta-row">
+                            <span class="service-meta-key">Unit</span>
+                            <span class="service-meta-val">{{ service.deployment.unit }}</span>
+                        </div>
+                    {% elif service.deployment.type == 'process' %}
+                        <div class="service-meta-row">
+                            <span class="service-meta-key">CMD</span>
+                            <span class="service-meta-val" style="font-family:'JetBrains Mono',monospace;font-size:0.78rem;">
+                                {{ service.deployment.cmdline }}
+                            </span>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
     </div>
 {% else %}
     <div class="card">
-        <h3>最后快照摘要</h3>
-        <p>采集时间: {{ snapshot.timestamp }}</p>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem;">
-            {% for name, data in snapshot.collectors.items() %}
-            <div style="border: 1px solid #e2e8f0; padding: 1rem; border-radius: 0.25rem;">
-                <h4 style="margin: 0; color: #475569;">{{ name }}</h4>
-                <p style="font-size: 1.5rem; font-weight: bold; margin: 0.5rem 0;">
-                    {% if name == 'network' %} {{ data.ports|length }} <span style="font-size: 0.8rem; font-weight: normal;">端口</span>
-                    {% elif name == 'apt' %} {{ data.packages|length }} <span style="font-size: 0.8rem; font-weight: normal;">包</span>
-                    {% elif name == 'service_mapper' %} {{ data.services|length }} <span style="font-size: 0.8rem; font-weight: normal;">服务</span>
-                    {% elif name == 'config_files' %} {{ data.files|length }} <span style="font-size: 0.8rem; font-weight: normal;">文件</span>
-                    {% else %} 已采集 {% endif %}
-                </p>
-            </div>
-            {% endfor %}
-        </div>
-        <div style="margin-top: 1.5rem;">
-            <a href="/machine/{{ machine_key }}/history" class="btn" style="background-color: #64748b;">查看所有历史快照对比</a>
+        <div class="empty-state">
+            <div class="empty-icon">🔌</div>
+            <p>暂无服务溯源数据。<br>运行 <code>sudo mt scan</code> 采集服务信息。</p>
         </div>
     </div>
+{% endif %}
 
-    <h2>服务画像</h2>
-    {% if 'service_mapper' in snapshot.collectors %}
-        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 1rem;">
-            {% for service in snapshot.collectors.service_mapper.services %}
-            <div class="card" style="margin-bottom: 0;">
-                <div style="display: flex; justify-content: space-between;">
-                    <span style="font-weight: bold; font-size: 1.1rem;">端口 {{ service.port }}</span>
-                    <span class="badge" style="background-color: #e2e8f0;">{{ service.deployment.type }}</span>
-                </div>
-                <p style="margin: 0.5rem 0; font-family: monospace; background: #f1f5f9; padding: 0.25rem; font-size: 0.85rem;">
-                    {{ service.process or 'Unknown Process' }} (PID: {{ service.pid or 'N/A' }})
-                </p>
-                {% if service.deployment.type == 'docker' %}
-                    <p style="font-size: 0.85rem; margin-bottom: 0;"><strong>Container:</strong> {{ service.deployment.container_name }}</p>
-                    <p style="font-size: 0.85rem; margin-bottom: 0; color: #64748b;"><strong>Image:</strong> {{ service.deployment.image }}</p>
-                {% elif service.deployment.type == 'systemd' %}
-                    <p style="font-size: 0.85rem; margin-bottom: 0;"><strong>Unit:</strong> {{ service.deployment.unit }}</p>
-                {% elif service.deployment.type == 'process' %}
-                    <p style="font-size: 0.85rem; margin-bottom: 0; word-break: break-all;"><strong>CMD:</strong> {{ service.deployment.cmdline }}</p>
-                {% endif %}
-            </div>
-            {% endfor %}
-        </div>
-    {% else %}
-        <p>暂无服务溯源数据。</p>
-    {% endif %}
 {% endif %}
 {% endblock %}

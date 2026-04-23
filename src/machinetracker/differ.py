@@ -30,24 +30,12 @@ class Differ:
                         obj is not BaseCollector and 
                         not inspect.isabstract(obj)):
                         
-                        self._instantiate_for_diff(obj)
+                        # 使用工厂方法实例化，保持与 CollectorManager 一致
+                        instances = obj.create_instances(self.config)
+                        for inst in instances:
+                            self.collectors[inst.name] = inst
             except Exception:
                 pass
-
-    def _instantiate_for_diff(self, cls: Type[BaseCollector]):
-        """实例化用于对比的采集器对象"""
-        try:
-            if cls.name == "config_files" and self.config:
-                watch_paths = self.config.collectors.config_files.get("watch_paths", [])
-                self.collectors["config_files"] = cls(watch_paths)
-            elif cls.name == "package_manager":
-                self.collectors["npm"] = cls(mode="npm")
-                self.collectors["pip"] = cls(mode="pip")
-            else:
-                instance = cls()
-                self.collectors[instance.name] = instance
-        except Exception:
-            pass
 
     def compare(self, old_snapshot: Optional[Dict[str, Any]], new_snapshot: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
         """对比两份全量快照，返回差异结果"""

@@ -8,6 +8,11 @@ class ConfigFilesCollector(BaseCollector):
     name = "config_files"
     """配置文件指纹采集器"""
 
+    @classmethod
+    def create_instances(cls, config: Any) -> List[BaseCollector]:
+        watch_paths = config.collectors.config_files.get("watch_paths", [])
+        return [cls(watch_paths)]
+
     def __init__(self, watch_paths: List[str]):
         self.watch_paths = watch_paths
 

@@ -7,8 +7,13 @@ class PackageManagersCollector(BaseCollector):
     name = "package_manager"
     """NPM 和 PIP 软件包采集器"""
 
+    @classmethod
+    def create_instances(cls, config: Any) -> List[BaseCollector]:
+        return [cls(mode="npm"), cls(mode="pip")]
+
     def __init__(self, mode: str):
         self.mode = mode # 'npm' or 'pip'
+        self.name = mode # 覆盖类属性，确保实例有独立的名字
 
     def is_available(self) -> bool:
         if self.mode == 'npm':

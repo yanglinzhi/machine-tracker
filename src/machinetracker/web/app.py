@@ -108,11 +108,7 @@ async def diff_view(request: Request, machine_key: str, t1: str, t2: str):
         # 统一使用 store 的方法定位机器目录
         machine_dir = store._get_machine_dir(m_config.id)
         path = machine_dir / "snapshots" / filename
-        if not path.exists():
-            return None
-        import json
-        with open(path, "r") as f:
-            return json.load(f)
+        return store._load_json_gz(path)
 
     snap1 = load_snap(t1)
     snap2 = load_snap(t2)
@@ -126,6 +122,7 @@ async def diff_view(request: Request, machine_key: str, t1: str, t2: str):
     return templates.TemplateResponse(
         request=request, name="diff.html", context={
             "machine": m_config,
+            "machine_key": machine_key,
             "diff": diff_results,
             "t1": t1,
             "t2": t2

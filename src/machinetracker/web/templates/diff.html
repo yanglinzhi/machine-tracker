@@ -4,86 +4,302 @@
 
 {% block content %}
 <style>
-    .diff-container { margin-top: 2rem; }
-    .collector-group { margin-bottom: 3rem; }
-    .collector-title { 
-        display: flex; align-items: center; gap: 0.5rem;
-        font-size: 1.5rem; color: #1e293b; border-bottom: 2px solid #e2e8f0;
-        padding-bottom: 0.5rem; margin-bottom: 1rem;
+    /* ── Audit summary bar ── */
+    .audit-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin: 1rem 0 2rem;
     }
-    .change-item {
-        background: white; border: 1px solid #e2e8f0;
-        border-radius: 0.5rem; margin-bottom: 1rem; overflow: hidden;
-    }
-    .change-header {
-        padding: 0.75rem 1rem; background: #f8fafc;
-        display: flex; justify-content: space-between; align-items: center;
-        border-bottom: 1px solid #e2e8f0;
-    }
-    .change-body { padding: 1rem; }
-    .diff-row { display: flex; gap: 1rem; margin-bottom: 0.5rem; font-size: 0.9rem; align-items: flex-start; }
-    .field-name { font-weight: 600; min-width: 200px; color: #64748b; flex-shrink: 0; word-break: break-all; }
-    .diff-values { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
-    .old-val { color: #991b1b; background: #fee2e2; padding: 0 4px; border-radius: 2px; text-decoration: line-through; }
-    .new-val { color: #166534; background: #dcfce7; padding: 0 4px; border-radius: 2px; }
-    .added-item { color: #166534; }
-    .removed-item { color: #991b1b; text-decoration: line-through; }
 
-    /* 风险样式 */
-    .change-item.risk-high { border: 2px solid #ef4444; }
-    .change-item.risk-high .change-header { background: #fee2e2; }
-    .risk-badge { 
-        font-size: 0.7rem; padding: 2px 6px; border-radius: 4px;
-        margin-left: 0.5rem; font-weight: bold;
+    .audit-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        background: rgba(255,255,255,0.04);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 0.4rem 0.8rem;
+        font-family: 'JetBrains Mono', monospace;
     }
-    .risk-HIGH { background: #ef4444; color: white; }
-    .risk-MEDIUM { background: #f59e0b; color: white; }
-    .risk-reason { font-size: 0.8rem; color: #ef4444; margin-top: 0.5rem; font-style: italic; }
+
+    .audit-chip strong {
+        color: var(--text-primary);
+        font-family: 'Inter', sans-serif;
+    }
+
+    /* ── Collector group ── */
+    .collector-group {
+        margin-bottom: 3rem;
+        animation: fadeInUp 0.35s ease both;
+    }
+
+    .collector-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding-bottom: 0.75rem;
+        margin-bottom: 1.25rem;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .collector-name {
+        font-size: 1rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        background: linear-gradient(135deg, var(--text-primary), var(--text-secondary));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .change-count-pill {
+        font-size: 0.7rem;
+        color: var(--text-muted);
+        background: rgba(255,255,255,0.05);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 0.2rem 0.65rem;
+        font-weight: 600;
+    }
+
+    /* ── Change item ── */
+    .change-item {
+        background: rgba(255,255,255,0.02);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        margin-bottom: 0.875rem;
+        overflow: hidden;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .change-item:hover {
+        border-color: rgba(99,102,241,0.25);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    }
+
+    .change-item.risk-high {
+        border-color: rgba(239, 68, 68, 0.3);
+    }
+
+    .change-item.risk-high:hover {
+        border-color: rgba(239, 68, 68, 0.5);
+        box-shadow: 0 4px 20px rgba(239, 68, 68, 0.1);
+    }
+
+    .change-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.875rem 1.25rem;
+        background: rgba(255,255,255,0.02);
+        border-bottom: 1px solid var(--border);
+    }
+
+    .change-item.risk-high .change-header {
+        background: rgba(239, 68, 68, 0.05);
+    }
+
+    .change-item-name {
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: var(--text-primary);
+        font-family: 'JetBrains Mono', monospace;
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+    }
+
+    .risk-badge {
+        font-size: 0.65rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        padding: 0.2rem 0.55rem;
+        border-radius: 5px;
+        border: 1px solid;
+    }
+
+    .risk-HIGH {
+        background: rgba(239, 68, 68, 0.15);
+        color: var(--red);
+        border-color: rgba(239, 68, 68, 0.4);
+    }
+
+    .risk-MEDIUM {
+        background: rgba(245, 158, 11, 0.15);
+        color: var(--yellow);
+        border-color: rgba(245, 158, 11, 0.4);
+    }
+
+    .change-body {
+        padding: 1rem 1.25rem;
+    }
+
+    /* ── Risk reason ── */
+    .risk-reason {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.5rem;
+        font-size: 0.82rem;
+        color: var(--red);
+        background: rgba(239, 68, 68, 0.07);
+        border: 1px solid rgba(239, 68, 68, 0.2);
+        border-radius: 8px;
+        padding: 0.6rem 0.9rem;
+        margin-bottom: 1rem;
+    }
+
+    /* ── Diff rows ── */
+    .diff-row {
+        display: flex;
+        gap: 0.75rem;
+        margin-bottom: 0.5rem;
+        font-size: 0.875rem;
+        align-items: flex-start;
+    }
+
+    .field-name {
+        font-weight: 600;
+        min-width: 180px;
+        color: var(--text-muted);
+        flex-shrink: 0;
+        font-size: 0.8rem;
+        padding-top: 0.15rem;
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    .diff-values {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        align-items: center;
+    }
+
+    .old-val {
+        color: var(--red);
+        background: var(--red-bg);
+        border: 1px solid rgba(239, 68, 68, 0.25);
+        padding: 0.1em 0.45em;
+        border-radius: 5px;
+        text-decoration: line-through;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.82rem;
+        word-break: break-all;
+    }
+
+    .new-val {
+        color: var(--green);
+        background: var(--green-bg);
+        border: 1px solid rgba(34, 197, 94, 0.25);
+        padding: 0.1em 0.45em;
+        border-radius: 5px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.82rem;
+        word-break: break-all;
+    }
+
+    .arrow-sep {
+        color: var(--text-muted);
+        font-size: 0.85rem;
+    }
+
+    /* ── Added/Removed ── */
+    .added-block {
+        background: var(--green-bg);
+        border: 1px solid rgba(34, 197, 94, 0.2);
+        border-radius: 10px;
+        padding: 0.75rem 1rem;
+    }
+
+    .removed-block {
+        background: var(--red-bg);
+        border: 1px solid rgba(239, 68, 68, 0.2);
+        border-radius: 10px;
+        padding: 0.75rem 1rem;
+        text-decoration: line-through;
+        color: var(--red);
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.85rem;
+        word-break: break-all;
+    }
+
+    .added-block .diff-row { margin-bottom: 0.35rem; }
+
+    .added-field { color: var(--text-muted); font-weight: 600; min-width: 120px; font-size: 0.78rem; font-family: 'JetBrains Mono', monospace; }
+    .added-val { color: var(--green); font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; }
+
+    /* ── Empty state ── */
+    .no-changes {
+        text-align: center;
+        padding: 5rem 2rem;
+        color: var(--text-muted);
+    }
+
+    .no-changes .icon { font-size: 3.5rem; margin-bottom: 1rem; opacity: 0.4; }
 </style>
 
-<div style="margin-bottom: 2rem;">
-    <a href="/machine/{{ machine_key }}/history" style="color: #64748b; text-decoration: none;">&larr; 返回历史记录</a>
+<div class="page-header fade-in">
+    <a href="/machine/{{ machine_key }}/history" class="back-link">← 返回历史记录</a>
     <h1>变更审计报告</h1>
-    <p style="color: #64748b;">审计范围: <code>{{ t1 }}</code> 至 <code>{{ t2 }}</code></p>
 </div>
 
-<div class="diff-container">
+<div class="audit-meta fade-in">
+    <div class="audit-chip"><span>🖥</span> <strong>{{ machine.name }}</strong></div>
+    <div class="audit-chip"><span>📅</span> 基准 <strong>{{ t1 }}</strong></div>
+    <div class="audit-chip"><span>📅</span> 目标 <strong>{{ t2 }}</strong></div>
+</div>
+
 {% if not diff %}
-    <div class="card"><p>所选时间段内未发现任何状态变更。</p></div>
+    <div class="card fade-in">
+        <div class="no-changes">
+            <div class="icon">✅</div>
+            <p style="font-size:1rem; font-weight:600; color:var(--green);">所选时间段内未发现任何状态变更</p>
+            <p style="font-size:0.85rem; margin-top:0.5rem;">机器状态稳定，没有任何差异被检测到。</p>
+        </div>
+    </div>
+
 {% else %}
     {% for collector, changes in diff.items() %}
-    <div class="collector-group">
-        <div class="collector-title">
-            <span>{{ collector|upper }}</span>
-            <span style="font-size: 0.9rem; font-weight: normal; color: #94a3b8;">({{ changes|length }} 处变更)</span>
+    <div class="collector-group" style="animation-delay: {{ loop.index0 * 0.07 }}s;">
+        <div class="collector-header">
+            <span class="collector-name">{{ collector }}</span>
+            <span class="change-count-pill">{{ changes|length }} 处变更</span>
         </div>
 
         {% for change in changes %}
         <div class="change-item risk-{{ change.risk|lower }}">
             <div class="change-header">
-                <div>
-                    <span style="font-weight: bold;">{{ change.item }}</span>
+                <div class="change-item-name">
+                    {{ change.item }}
                     {% if change.risk != 'LOW' %}
                         <span class="risk-badge risk-{{ change.risk }}">{{ change.risk }} RISK</span>
                     {% endif %}
                 </div>
                 <span class="badge badge-{{ change.type }}">{{ change.type|upper }}</span>
             </div>
+
             <div class="change-body">
                 {% if change.risk_reason %}
-                    <div class="risk-reason">⚠ 警报: {{ change.risk_reason }}</div>
+                    <div class="risk-reason">
+                        <span>⚠</span>
+                        <span>{{ change.risk_reason }}</span>
+                    </div>
                 {% endif %}
 
                 {% if change.type == 'changed' %}
                     {% if change.old is mapping and change.new is mapping %}
-                        {# 对象级对比：只展示不相等的字段 #}
                         {% for key in change.new.keys() %}
                             {% if change.old.get(key) != change.new.get(key) %}
                                 <div class="diff-row">
                                     <span class="field-name">{{ key }}:</span>
                                     <div class="diff-values">
                                         <span class="old-val">{{ change.old.get(key)|string }}</span>
-                                        <span style="color: #94a3b8;">&rarr;</span>
+                                        <span class="arrow-sep">→</span>
                                         <span class="new-val">{{ change.new.get(key)|string }}</span>
                                     </div>
                                 </div>
@@ -91,30 +307,30 @@
                         {% endfor %}
                     {% else %}
                         <div class="diff-row">
-                            <span class="old-val">{{ change.old }}</span>
-                            <span style="color: #94a3b8;">&rarr;</span>
-                            <span class="new-val">{{ change.new }}</span>
+                            <div class="diff-values">
+                                <span class="old-val">{{ change.old }}</span>
+                                <span class="arrow-sep">→</span>
+                                <span class="new-val">{{ change.new }}</span>
+                            </div>
                         </div>
                     {% endif %}
-                
+
                 {% elif change.type == 'added' %}
-                    <div class="added-item">
+                    <div class="added-block">
                         {% if change.new is mapping %}
                             {% for key, val in change.new.items() %}
                                 <div class="diff-row">
-                                    <span class="field-name">{{ key }}:</span>
-                                    <span>{{ val|string }}</span>
+                                    <span class="added-field">{{ key }}:</span>
+                                    <span class="added-val">{{ val|string }}</span>
                                 </div>
                             {% endfor %}
                         {% else %}
-                            {{ change.new }}
+                            <span class="added-val">{{ change.new }}</span>
                         {% endif %}
                     </div>
-                
+
                 {% elif change.type == 'removed' %}
-                    <div class="removed-item">
-                        {{ change.old|string }}
-                    </div>
+                    <div class="removed-block">{{ change.old|string }}</div>
                 {% endif %}
             </div>
         </div>
@@ -122,5 +338,4 @@
     </div>
     {% endfor %}
 {% endif %}
-</div>
 {% endblock %}

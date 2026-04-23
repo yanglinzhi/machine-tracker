@@ -1,49 +1,199 @@
 {% extends "base.html" %}
 
-{% block title %}历史记录 - {{ machine.name }}{% endblock %}
+{% block title %}历史快照 - {{ machine.name }}{% endblock %}
 
 {% block content %}
-<div style="margin-bottom: 2rem;">
-    <a href="/machine/{{ machine_key }}" style="color: #64748b; text-decoration: none;">&larr; 返回详情</a>
-    <h1>{{ machine.name }} 历史快照</h1>
-    <p>请选择两个快照进行对比（先选旧的，再选新的）</p>
+<style>
+    .history-table-wrap {
+        overflow: hidden;
+        border-radius: 14px;
+        border: 1px solid var(--border);
+    }
+
+    .history-table {
+        margin: 0;
+    }
+
+    .history-table th {
+        padding: 0.875rem 1.25rem;
+    }
+
+    .history-table td {
+        padding: 0.875rem 1.25rem;
+    }
+
+    .checkbox-cell { width: 48px; }
+
+    .snap-checkbox {
+        width: 18px;
+        height: 18px;
+        accent-color: var(--accent);
+        cursor: pointer;
+    }
+
+    .snap-ts {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.85rem;
+        color: var(--text-primary);
+    }
+
+    .snap-filename {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.78rem;
+        color: var(--text-muted);
+    }
+
+    .selection-hint {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        font-size: 0.82rem;
+        color: var(--text-secondary);
+        margin-bottom: 1rem;
+        background: rgba(99,102,241,0.06);
+        border: 1px solid rgba(99,102,241,0.15);
+        border-radius: 10px;
+        padding: 0.7rem 1rem;
+    }
+
+    .compare-bar {
+        position: sticky;
+        bottom: 1.5rem;
+        display: flex;
+        justify-content: flex-end;
+        padding-top: 1.5rem;
+    }
+
+    .selected-count {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        background: rgba(255,255,255,0.05);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        margin-right: 0.75rem;
+    }
+
+    #selected-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: var(--accent);
+        color: white;
+        font-size: 0.7rem;
+        font-weight: 700;
+    }
+
+    tr.selected-row td {
+        background: rgba(99,102,241,0.06);
+    }
+</style>
+
+<div class="page-header fade-in">
+    <a href="/machine/{{ machine_key }}" class="back-link">← 返回详情</a>
+    <h1>{{ machine.name }} — 历史快照</h1>
+    <p>选择两个快照进行字段级变更对比（先选旧的，再选新的）</p>
 </div>
 
-<div class="card">
-    <form id="compareForm">
-        <table>
+<div class="selection-hint fade-in">
+    <span>💡</span>
+    <span>勾选两行快照后，点击 <strong>对比所选快照</strong> 按钮查看详细变更审计报告。</span>
+</div>
+
+<div class="card fade-in" style="padding: 0;">
+    <div class="history-table-wrap">
+        <table class="history-table">
             <thead>
                 <tr>
-                    <th style="width: 40px;">选</th>
+                    <th class="checkbox-cell">选</th>
                     <th>时间戳</th>
                     <th>文件名</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="historyBody">
                 {% for entry in history %}
-                <tr>
-                    <td><input type="checkbox" name="snap" value="{{ entry.filename }}"></td>
-                    <td>{{ entry.timestamp }}</td>
-                    <td>{{ entry.filename }}</td>
+                <tr onclick="toggleRow(this, '{{ entry.filename }}')" style="cursor:pointer;">
+                    <td>
+                        <input type="checkbox" class="snap-checkbox" name="snap"
+                               value="{{ entry.filename }}" onclick="event.stopPropagation();"
+                               onchange="onCheckChange(this)">
+                    </td>
+                    <td><span class="snap-ts">{{ entry.timestamp }}</span></td>
+                    <td><span class="snap-filename">{{ entry.filename }}</span></td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
-        <div style="margin-top: 1rem;">
-            <button type="button" onclick="compare()" class="btn">对比所选快照</button>
-        </div>
-    </form>
+    </div>
+</div>
+
+<div class="compare-bar">
+    <span class="selected-count">
+        已选择 <span id="selected-badge">0</span> 个快照
+    </span>
+    <button id="compareBtn" onclick="compare()" class="btn" disabled
+            style="opacity:0.5; cursor:not-allowed;">
+        ⚡ 对比所选快照
+    </button>
 </div>
 
 <script>
+let selectedCount = 0;
+
+function onCheckChange(cb) {
+    const row = cb.closest('tr');
+    const checked = document.querySelectorAll('input[name="snap"]:checked');
+
+    if (checked.length > 2) {
+        cb.checked = false;
+        return;
+    }
+
+    selectedCount = checked.length;
+    document.getElementById('selected-badge').textContent = selectedCount;
+
+    const btn = document.getElementById('compareBtn');
+    if (selectedCount === 2) {
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+    } else {
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+        btn.style.cursor = 'not-allowed';
+    }
+
+    // highlight rows
+    document.querySelectorAll('#historyBody tr').forEach(tr => {
+        const trCb = tr.querySelector('input[name="snap"]');
+        if (trCb && trCb.checked) {
+            tr.classList.add('selected-row');
+        } else {
+            tr.classList.remove('selected-row');
+        }
+    });
+}
+
+function toggleRow(tr, filename) {
+    const cb = tr.querySelector('input[name="snap"]');
+    if (!cb) return;
+    const checked = document.querySelectorAll('input[name="snap"]:checked');
+    if (!cb.checked && checked.length >= 2) return;
+    cb.checked = !cb.checked;
+    onCheckChange(cb);
+}
+
 function compare() {
     const checked = document.querySelectorAll('input[name="snap"]:checked');
     if (checked.length !== 2) {
-        alert("请选择且仅选择两个快照进行对比。");
         return;
     }
-    // 假设第一个选的是旧的，第二个是新的（按时间倒序排列）
-    // history 是倒序的，所以 checked[1] 是旧的，checked[0] 是新的
     const t2 = checked[0].value;
     const t1 = checked[1].value;
     window.location.href = `/machine/{{ machine_key }}/diff/${t1}/${t2}`;

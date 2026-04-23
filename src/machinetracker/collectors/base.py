@@ -9,6 +9,14 @@ class BaseCollector(ABC):
     # 采集器的唯一标识名，由子类定义
     name: str = "base"
 
+    @classmethod
+    def create_instances(cls, config: Any) -> List['BaseCollector']:
+        """
+        工厂方法：根据配置创建采集器实例。
+        默认返回一个无参实例，复杂采集器（如 package_manager）可返回多个实例。
+        """
+        return [cls()]
+
     @abstractmethod
     def is_available(self) -> bool:
         """检查此采集器是否可用（例如：是否安装了相关的命令行工具）"""

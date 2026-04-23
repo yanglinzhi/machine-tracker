@@ -8,7 +8,6 @@ class MachineConfig(BaseModel):
     id: str
     name: str
     scan_interval: str = "30m"
-    ssh: Optional[str] = None
 
 class RiskRule(BaseModel):
     pattern: str          # 匹配的关键字（正则表达式）
