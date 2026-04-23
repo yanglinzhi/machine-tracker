@@ -339,10 +339,13 @@
             <span class="brand-name">Machine<span>Tracker</span></span>
         </a>
         <div class="header-right">
-            <a href="/" class="header-badge" style="text-decoration:none;">🖥 仪表盘</a>
+            <a href="/set_lang/{% if lang == 'zh' %}en{% else %}zh{% endif %}" class="header-badge" style="text-decoration:none; color: var(--accent);">
+                🌐 {{ _T('WEB_SWITCH_LANG', lang) }}
+            </a>
+            <a href="/" class="header-badge" style="text-decoration:none;">🖥 {{ _T('WEB_DASHBOARD', lang) }}</a>
             <div class="header-badge">
                 <span class="status-dot"></span>
-                机器状态监控面板
+                {{ _T('WEB_SUBTITLE', lang) }}
             </div>
         </div>
     </header>

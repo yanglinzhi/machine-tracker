@@ -9,12 +9,33 @@ from machinetracker.config import load_config
 from machinetracker.store import SnapshotStore
 from machinetracker.differ import Differ
 from machinetracker.constants import get_default_config_path
+from machinetracker.i18n import _T, get_web_lang
 
 app = FastAPI(title="MachineTracker GUI")
 
 # 设置模板和静态文件路径
 current_dir = Path(__file__).parent
 templates = Jinja2Templates(directory=str(current_dir / "templates"))
+
+# 注入翻译函数到模板
+@app.middleware("http")
+async def add_lang_to_request(request: Request, call_next):
+    # 将 _T 注入到 request 对象，以便在视图中使用
+    lang = get_web_lang(request)
+    request.state.lang = lang
+    response = await call_next(request)
+    return response
+
+# 模板全局变量
+templates.env.globals["_T"] = _T
+
+@app.get("/set_lang/{lang}")
+async def set_lang(lang: str, request: Request):
+    from fastapi.responses import RedirectResponse
+    response = RedirectResponse(url=request.headers.get("referer", "/"))
+    if lang in ["zh", "en"]:
+        response.set_cookie(key="mt_lang", value=lang, max_age=31536000)
+    return response
 
 def get_store():
     config_path = get_default_config_path()
@@ -51,9 +72,14 @@ async def dashboard(request: Request):
                 }
 
         latest = snaps[0] if snaps else None
+        # 如果机器名是默认的“本地机器”，则根据当前 Web 语言进行翻译
+        m_display_name = m_config.name
+        if m_display_name in ["本地机器", "local-machine"]:
+            m_display_name = _T("WEB_LOCAL_MACHINE_DEFAULT", request.state.lang)
+
         machines_data.append({
             "key": m_key,
-            "name": m_config.name,
+            "name": m_display_name,
             "id": m_config.id,
             "latest_timestamp": latest.get("timestamp") if latest else None,
             "hostname": latest.get("hostname") if latest else "Unknown",
@@ -62,7 +88,7 @@ async def dashboard(request: Request):
         })
     
     return templates.TemplateResponse(
-        request=request, name="dashboard.html", context={"machines": machines_data}
+        request=request, name="dashboard.html", context={"machines": machines_data, "lang": request.state.lang}
     )
 
 @app.get("/machine/{machine_key}")
@@ -72,15 +98,19 @@ async def machine_detail(request: Request, machine_key: str):
         raise HTTPException(status_code=404, detail="Machine not found")
     
     m_config = config.machines[machine_key]
+    m_display_name = m_config.name
+    if m_display_name in ["本地机器", "local-machine"]:
+        m_display_name = _T("WEB_LOCAL_MACHINE_DEFAULT", request.state.lang)
+    
     snapshot = store.get_latest_snapshot(m_config.id)
     
     if not snapshot:
         return templates.TemplateResponse(
-            request=request, name="machine.html", context={"machine": m_config, "machine_key": machine_key, "snapshot": None}
+            request=request, name="machine.html", context={"machine": m_config, "machine_name": m_display_name, "machine_key": machine_key, "snapshot": None, "lang": request.state.lang}
         )
     
     return templates.TemplateResponse(
-        request=request, name="machine.html", context={"machine": m_config, "machine_key": machine_key, "snapshot": snapshot}
+        request=request, name="machine.html", context={"machine": m_config, "machine_name": m_display_name, "machine_key": machine_key, "snapshot": snapshot, "lang": request.state.lang}
     )
 
 @app.get("/machine/{machine_key}/history")
@@ -90,10 +120,14 @@ async def history(request: Request, machine_key: str):
         raise HTTPException(status_code=404, detail="Machine not found")
     
     m_config = config.machines[machine_key]
+    m_display_name = m_config.name
+    if m_display_name in ["本地机器", "local-machine"]:
+        m_display_name = _T("WEB_LOCAL_MACHINE_DEFAULT", request.state.lang)
+
     history_list = store.get_history(m_config.id, limit=50)
     
     return templates.TemplateResponse(
-        request=request, name="history.html", context={"machine": m_config, "machine_key": machine_key, "history": history_list}
+        request=request, name="history.html", context={"machine": m_config, "machine_name": m_display_name, "machine_key": machine_key, "history": history_list, "lang": request.state.lang}
     )
 
 @app.get("/machine/{machine_key}/diff/{t1}/{t2}")
@@ -103,6 +137,9 @@ async def diff_view(request: Request, machine_key: str, t1: str, t2: str):
         raise HTTPException(status_code=404, detail="Machine not found")
     
     m_config = config.machines[machine_key]
+    m_display_name = m_config.name
+    if m_display_name in ["本地机器", "local-machine"]:
+        m_display_name = _T("WEB_LOCAL_MACHINE_DEFAULT", request.state.lang)
     
     def load_snap(filename):
         # 统一使用 store 的方法定位机器目录
@@ -122,9 +159,11 @@ async def diff_view(request: Request, machine_key: str, t1: str, t2: str):
     return templates.TemplateResponse(
         request=request, name="diff.html", context={
             "machine": m_config,
+            "machine_name": m_display_name,
             "machine_key": machine_key,
             "diff": diff_results,
             "t1": t1,
-            "t2": t2
+            "t2": t2,
+            "lang": request.state.lang
         }
     )

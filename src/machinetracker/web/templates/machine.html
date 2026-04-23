@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ machine.name }} 详情 - MachineTracker{% endblock %}
+{% block title %}{{ machine_name }} {{ _T('WEB_VIEW_DETAIL', lang) }} - MachineTracker{% endblock %}
 
 {% block content %}
 <style>
@@ -169,23 +169,23 @@
 </style>
 
 <div class="page-header fade-in">
-    <a href="/" class="back-link">← 返回仪表盘</a>
-    <h1>{{ machine.name }}</h1>
-    <p>ID: {{ machine.id }} &nbsp;·&nbsp; 主机名: {{ snapshot.hostname if snapshot else 'Unknown' }}</p>
+    <a href="/" class="back-link">← {{ _T('WEB_BACK_TO_DASHBOARD', lang) }}</a>
+    <h1>{{ machine_name }}</h1>
+    <p>ID: {{ machine.id }} &nbsp;·&nbsp; {{ _T('WEB_HOSTNAME', lang) }}: {{ snapshot.hostname if snapshot else 'Unknown' }}</p>
 </div>
 
 {% if not snapshot %}
     <div class="card fade-in">
         <div class="empty-state">
             <div class="empty-icon">🤖</div>
-            <p>该机器尚无快照数据。<br>请在终端运行 <code>mt scan</code> 进行首次采集。</p>
+            <p>{{ _T('WEB_MACHINE_NO_SNAPSHOT', lang)|safe }}</p>
         </div>
     </div>
 {% else %}
 
 <div class="card fade-in">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem;">
-        <h3>最后快照摘要</h3>
+        <h3>{{ _T('WEB_MACHINE_LATEST_SUMMARY', lang) }}</h3>
         <code style="font-size:0.78rem;">{{ snapshot.timestamp }}</code>
     </div>
 
@@ -201,22 +201,23 @@
                 {% else %}—{% endif %}
             </div>
             <div class="stat-unit">
-                {% if name == 'network' %}端口
-                {% elif name == 'apt' %}软件包
-                {% elif name == 'service_mapper' %}服务
-                {% elif name == 'config_files' %}文件
-                {% else %}已采集{% endif %}
+                {% if name == 'network' %}{{ _T('WEB_UNIT_PORT', lang) }}
+                {% elif name == 'apt' %}{{ _T('WEB_UNIT_PKG', lang) }}
+                {% elif name == 'service_mapper' %}{{ _T('WEB_UNIT_SERVICE', lang) }}
+                {% elif name == 'config_files' %}{{ _T('WEB_UNIT_FILE', lang) }}
+                {% else %}{{ _T('WEB_UNIT_COLLECTED', lang) }}{% endif %}
             </div>
-        </div>
-        {% endfor %}
-    </div>
+            </div>
+            {% endfor %}
+            </div>
 
-    <div style="margin-top:1rem;">
-        <a href="/machine/{{ machine_key }}/history" class="btn btn-secondary">📋 查看所有历史快照对比</a>
-    </div>
-</div>
-<h2>🗺 服务全景溯源</h2>
-{% if 'service_mapper' in snapshot.collectors %}
+            <div style="margin-top:1rem;">
+            <a href="/machine/{{ machine_key }}/history" class="btn btn-secondary">📋 {{ _T('WEB_MACHINE_VIEW_ALL_HISTORY', lang) }}</a>
+            </div>
+            </div>
+            <h2>🗺 {{ _T('WEB_MACHINE_SERVICE_PANORAMA', lang) }}</h2>
+            {% if 'service_mapper' in snapshot.collectors %}
+
     <div class="services-grid">
         {# 按端口分组展示 #}
         {% for port, items in snapshot.collectors.service_mapper.services|groupby('port') %}
@@ -238,8 +239,6 @@
                 </span>
             </div>
             <div class="service-body">
-... Applied fuzzy match at line 208-218.
-
                 <div class="service-cmd">{{ service.process or 'Unknown Process' }}  PID: {{ service.pid or 'N/A' }}</div>
                 <div class="service-meta">
                     {% if service.deployment.type == 'docker' %}
@@ -273,7 +272,7 @@
     <div class="card">
         <div class="empty-state">
             <div class="empty-icon">🔌</div>
-            <p>暂无服务溯源数据。<br>运行 <code>sudo mt scan</code> 采集服务信息。</p>
+            <p>{{ _T('WEB_MACHINE_NO_SERVICE_DATA', lang)|safe }}</p>
         </div>
     </div>
 {% endif %}

@@ -27,12 +27,15 @@ class OutputConfig(BaseModel):
     format: str = "markdown"
     changelog_path: str = "~/.local/share/machine-tracker/changelog.md"
 
+from .i18n import get_system_lang
+
 class AppConfig(BaseModel):
     machines: Dict[str, MachineConfig]
     storage: StorageConfig
     collectors: CollectorsConfig
     output: OutputConfig
     risk_rules: List[RiskRule] = Field(default_factory=list)
+    language: str = Field(default_factory=get_system_lang)
 
 def load_config(config_path: str) -> AppConfig:
     """加载并校验配置文件"""
@@ -44,6 +47,13 @@ def load_config(config_path: str) -> AppConfig:
         config_data = yaml.safe_load(f)
     
     return AppConfig(**config_data)
+
+def save_config(config: AppConfig, config_path: str):
+    """将配置保存回 YAML 文件"""
+    path = Path(os.path.expanduser(config_path))
+    with open(path, "w", encoding="utf-8") as f:
+        # 使用 pydantic 的 model_dump 转换为字典，再用 safe_dump 写入
+        yaml.safe_dump(config.model_dump(), f, allow_unicode=True, sort_keys=False)
 
 def get_default_config_path() -> str:
     """获取默认配置文件路径，智能处理 sudo 环境"""

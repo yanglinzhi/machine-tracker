@@ -60,3 +60,4 @@ risk_rules:
   - pattern: "docker-compose.yaml"
     level: "MEDIUM"
     reason: "Docker 部署配置发生变动。"
+language: "zh"

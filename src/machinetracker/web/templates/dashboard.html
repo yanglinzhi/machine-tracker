@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}仪表盘 - MachineTracker{% endblock %}
+{% block title %}{{ _T('WEB_DASHBOARD', lang) }} - MachineTracker{% endblock %}
 
 {% block content %}
 <style>
@@ -320,8 +320,8 @@
 
 <div class="dashboard-header fade-in">
     <div class="page-header" style="margin-bottom:0;">
-        <h1>机器概览</h1>
-        <p>实时监控所有受管机器的状态变更</p>
+        <h1>{{ _T('WEB_DASHBOARD', lang) }}</h1>
+        <p>{{ _T('WEB_SUBTITLE', lang) }}</p>
     </div>
 </div>
 
@@ -341,7 +341,7 @@
                 </span>
                 <span class="meta-item">
                     <span class="meta-icon">🕐</span>
-                    {{ machine.latest_timestamp or '从未扫描' }}
+                    {{ machine.latest_timestamp or _T('WEB_NO_DATA', lang) }}
                 </span>
             </div>
         </div>
@@ -353,21 +353,21 @@
                     <div class="notif-left">
                         <span class="notif-icon">🔔</span>
                         <span style="color: {% if machine.has_high_risk %}var(--red){% else %}var(--accent){% endif %};">
-                            检测到 {{ machine.latest_change.count }} 处变更
+                            {{ _T('WEB_DASHBOARD_DETECTED_CHANGES', lang, count=machine.latest_change.count) }}
                         </span>
                     </div>
-                    <span class="notif-arrow">查看 →</span>
+                    <span class="notif-arrow">{{ _T('WEB_VIEW_DETAIL', lang) }} →</span>
                 </div>
             {% else %}
                 <div class="stable-bar">
                     <span>✓</span>
-                    <span>状态稳定，无变更记录</span>
+                    <span>{{ _T('WEB_STABLE_STATE', lang) }}</span>
                 </div>
             {% endif %}
 
             <div class="card-actions">
-                <a href="/machine/{{ machine.key }}" class="btn">🔍 全景详情</a>
-                <a href="/machine/{{ machine.key }}/history" class="btn btn-secondary">📋 快照历史</a>
+                <a href="/machine/{{ machine.key }}" class="btn">🔍 {{ _T('WEB_MACHINE_DETAIL', lang) }}</a>
+                <a href="/machine/{{ machine.key }}/history" class="btn btn-secondary">📋 {{ _T('WEB_HISTORY', lang) }}</a>
             </div>
         </div>
     </div>
@@ -376,7 +376,7 @@
     <div id="modal-{{ machine.key }}" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 class="modal-title">最近变更报告 — {{ machine.name }}</h3>
+                <h3 class="modal-title">{{ _T('WEB_DASHBOARD_RECENT_REPORT', lang) }} — {{ machine.name }}</h3>
                 <div class="close-btn" onclick="closeModal('{{ machine.key }}')">✕</div>
             </div>
             <div class="modal-body">
@@ -399,7 +399,7 @@
                 {% endfor %}
             </div>
             <div class="modal-footer">
-                <a href="/machine/{{ machine.key }}/history" class="btn">进入历史记录详审 →</a>
+                <a href="/machine/{{ machine.key }}/history" class="btn">{{ _T('WEB_DASHBOARD_GOTO_HISTORY', lang) }} →</a>
             </div>
         </div>
     </div>

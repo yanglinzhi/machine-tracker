@@ -1,14 +1,18 @@
 from typing import Any, Dict, List
+from .i18n import _T
 
 class Reporter:
     """报告生成器"""
 
+    def __init__(self, lang: str = "zh"):
+        self.lang = lang
+
     def generate_summary(self, diff_results: Dict[str, List[Dict[str, Any]]]) -> str:
         """生成文本格式的变更摘要"""
         if not diff_results:
-            return "没有检测到任何变更。"
+            return _T("REP_NO_CHANGES", self.lang)
 
-        lines = ["检测到以下变更:"]
+        lines = [_T("REP_CHANGES_DETECTED", self.lang)]
         for collector_name, changes in diff_results.items():
             lines.append(f"\n[{collector_name}]")
             for change in changes:
@@ -28,12 +32,12 @@ class Reporter:
     def generate_markdown(self, diff_results: Dict[str, List[Dict[str, Any]]]) -> str:
         """生成 Markdown 格式的详细报告"""
         if not diff_results:
-            return "No changes detected."
+            return _T("REP_NO_CHANGES", self.lang)
 
-        md = ["# Machine Change Report\n"]
+        md = [f"# {_T('REP_MD_TITLE', self.lang)}\n"]
         for collector_name, changes in diff_results.items():
             md.append(f"## {collector_name}\n")
-            md.append("| Type | Item | Details |")
+            md.append(f"| {_T('REP_MD_COL_TYPE', self.lang)} | {_T('REP_MD_COL_ITEM', self.lang)} | {_T('REP_MD_COL_DETAILS', self.lang)} |")
             md.append("|------|------|---------|")
             for change in changes:
                 ctype = change.get("type", "")
@@ -47,7 +51,7 @@ class Reporter:
                     new = change.get("new", {})
                     if isinstance(old, dict) and isinstance(new, dict):
                         changed_keys = [k for k in new if new.get(k) != old.get(k)]
-                        details = ", ".join(changed_keys) + " changed"
+                        details = ", ".join(changed_keys) + " " + _T("REP_MD_CHANGED", self.lang)
                 
                 md.append(f"| {ctype} | {item} | {details} |")
             md.append("")

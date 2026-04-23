@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}历史快照 - {{ machine.name }}{% endblock %}
+{% block title %}{{ _T('WEB_HISTORY', lang) }} - {{ machine_name }}{% endblock %}
 
 {% block content %}
 <style>
@@ -96,14 +96,14 @@
 </style>
 
 <div class="page-header fade-in">
-    <a href="/machine/{{ machine_key }}" class="back-link">← 返回详情</a>
-    <h1>{{ machine.name }} — 历史快照</h1>
-    <p>选择两个快照进行字段级变更对比（先选旧的，再选新的）</p>
+    <a href="/machine/{{ machine_key }}" class="back-link">← {{ _T('WEB_BACK_TO_DETAIL', lang) }}</a>
+    <h1>{{ machine_name }} — {{ _T('WEB_HISTORY', lang) }}</h1>
+    <p>{{ _T('WEB_HISTORY_SUBTITLE', lang) }}</p>
 </div>
 
 <div class="selection-hint fade-in">
     <span>💡</span>
-    <span>勾选两行快照后，点击 <strong>对比所选快照</strong> 按钮查看详细变更审计报告。</span>
+    <span>{{ _T('WEB_HISTORY_GUIDE', lang)|safe }}</span>
 </div>
 
 <div class="card fade-in" style="padding: 0;">
@@ -111,9 +111,9 @@
         <table class="history-table">
             <thead>
                 <tr>
-                    <th class="checkbox-cell">选</th>
-                    <th>时间戳</th>
-                    <th>文件名</th>
+                    <th class="checkbox-cell">#</th>
+                    <th>{{ _T('WEB_TIMESTAMP', lang) }}</th>
+                    <th>{{ _T('WEB_HISTORY_COL_FILENAME', lang) }}</th>
                 </tr>
             </thead>
             <tbody id="historyBody">
@@ -135,11 +135,11 @@
 
 <div class="compare-bar">
     <span class="selected-count">
-        已选择 <span id="selected-badge">0</span> 个快照
+        {{ _T('WEB_HISTORY_SELECTED', lang, count='<span id="selected-badge">0</span>')|safe }}
     </span>
     <button id="compareBtn" onclick="compare()" class="btn" disabled
             style="opacity:0.5; cursor:not-allowed;">
-        ⚡ 对比所选快照
+        {{ _T('WEB_HISTORY_COMPARE_BTN', lang) }}
     </button>
 </div>
 

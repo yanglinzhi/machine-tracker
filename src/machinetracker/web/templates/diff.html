@@ -1,341 +1,151 @@
 {% extends "base.html" %}
 
-{% block title %}变更审计 - {{ machine.name }}{% endblock %}
+{% block title %}{{ _T('WEB_DIFF_AUDIT', lang) }} - {{ machine_name }}{% endblock %}
 
 {% block content %}
 <style>
-    /* ── Audit summary bar ── */
+    .audit-header {
+        margin-bottom: 2rem;
+    }
+
     .audit-meta {
         display: flex;
-        flex-wrap: wrap;
-        gap: 0.75rem;
-        margin: 1rem 0 2rem;
+        gap: 1rem;
+        margin-top: 1rem;
     }
 
     .audit-chip {
         display: inline-flex;
         align-items: center;
-        gap: 0.4rem;
-        font-size: 0.8rem;
-        color: var(--text-secondary);
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
         background: rgba(255,255,255,0.04);
         border: 1px solid var(--border);
-        border-radius: 8px;
-        padding: 0.4rem 0.8rem;
+        border-radius: 10px;
         font-family: 'JetBrains Mono', monospace;
+        font-size: 0.82rem;
     }
 
-    .audit-chip strong {
-        color: var(--text-primary);
-        font-family: 'Inter', sans-serif;
+    .audit-chip b { color: var(--accent); }
+
+    .diff-collector-block {
+        margin-bottom: 2.5rem;
     }
 
-    /* ── Collector group ── */
-    .collector-group {
-        margin-bottom: 3rem;
-        animation: fadeInUp 0.35s ease both;
-    }
-
-    .collector-header {
+    .collector-head {
         display: flex;
         align-items: center;
         gap: 0.75rem;
-        padding-bottom: 0.75rem;
-        margin-bottom: 1.25rem;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
         border-bottom: 1px solid var(--border);
     }
 
     .collector-name {
-        font-size: 1rem;
+        font-size: 1.1rem;
         font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        background: linear-gradient(135deg, var(--text-primary), var(--text-secondary));
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
+        letter-spacing: -0.01em;
+        text-transform: capitalize;
     }
 
     .change-count-pill {
         font-size: 0.7rem;
-        color: var(--text-muted);
-        background: rgba(255,255,255,0.05);
-        border: 1px solid var(--border);
+        font-weight: 600;
+        background: rgba(255,255,255,0.06);
+        padding: 0.2rem 0.6rem;
+        border-radius: 6px;
+        color: var(--text-secondary);
+    }
+
+    /* ── Diff Table ── */
+    .diff-table {
+        background: rgba(255,255,255,0.01);
         border-radius: 12px;
-        padding: 0.2rem 0.65rem;
-        font-weight: 600;
-    }
-
-    /* ── Change item ── */
-    .change-item {
-        background: rgba(255,255,255,0.02);
         border: 1px solid var(--border);
-        border-radius: 14px;
-        margin-bottom: 0.875rem;
-        overflow: hidden;
-        transition: border-color 0.2s, box-shadow 0.2s;
     }
 
-    .change-item:hover {
-        border-color: rgba(99,102,241,0.25);
-        box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    .diff-table th { background: rgba(255,255,255,0.02); }
+
+    .risk-indicator {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 0.5rem;
     }
 
-    .change-item.risk-high {
-        border-color: rgba(239, 68, 68, 0.3);
-    }
+    .risk-HIGH { background: var(--red); box-shadow: 0 0 10px var(--red); }
+    .risk-MEDIUM { background: var(--yellow); }
+    .risk-LOW { background: var(--text-muted); }
 
-    .change-item.risk-high:hover {
-        border-color: rgba(239, 68, 68, 0.5);
-        box-shadow: 0 4px 20px rgba(239, 68, 68, 0.1);
-    }
-
-    .change-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0.875rem 1.25rem;
-        background: rgba(255,255,255,0.02);
-        border-bottom: 1px solid var(--border);
-    }
-
-    .change-item.risk-high .change-header {
-        background: rgba(239, 68, 68, 0.05);
-    }
-
-    .change-item-name {
-        font-weight: 600;
-        font-size: 0.9rem;
-        color: var(--text-primary);
-        font-family: 'JetBrains Mono', monospace;
-        display: flex;
-        align-items: center;
-        gap: 0.6rem;
-        flex-wrap: wrap;
-    }
-
-    .risk-badge {
-        font-size: 0.65rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        padding: 0.2rem 0.55rem;
-        border-radius: 5px;
-        border: 1px solid;
-    }
-
-    .risk-HIGH {
-        background: rgba(239, 68, 68, 0.15);
-        color: var(--red);
-        border-color: rgba(239, 68, 68, 0.4);
-    }
-
-    .risk-MEDIUM {
-        background: rgba(245, 158, 11, 0.15);
-        color: var(--yellow);
-        border-color: rgba(245, 158, 11, 0.4);
-    }
-
-    .change-body {
-        padding: 1rem 1.25rem;
-    }
-
-    /* ── Risk reason ── */
-    .risk-reason {
-        display: flex;
-        align-items: flex-start;
-        gap: 0.5rem;
-        font-size: 0.82rem;
-        color: var(--red);
-        background: rgba(239, 68, 68, 0.07);
-        border: 1px solid rgba(239, 68, 68, 0.2);
-        border-radius: 8px;
-        padding: 0.6rem 0.9rem;
-        margin-bottom: 1rem;
-    }
-
-    /* ── Diff rows ── */
-    .diff-row {
-        display: flex;
-        gap: 0.75rem;
-        margin-bottom: 0.5rem;
-        font-size: 0.875rem;
-        align-items: flex-start;
-    }
-
-    .field-name {
-        font-weight: 600;
-        min-width: 180px;
-        color: var(--text-muted);
-        flex-shrink: 0;
-        font-size: 0.8rem;
-        padding-top: 0.15rem;
-        font-family: 'JetBrains Mono', monospace;
-    }
-
-    .diff-values {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.4rem;
-        align-items: center;
-    }
-
-    .old-val {
-        color: var(--red);
-        background: var(--red-bg);
-        border: 1px solid rgba(239, 68, 68, 0.25);
-        padding: 0.1em 0.45em;
-        border-radius: 5px;
-        text-decoration: line-through;
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.82rem;
-        word-break: break-all;
-    }
-
-    .new-val {
-        color: var(--green);
-        background: var(--green-bg);
-        border: 1px solid rgba(34, 197, 94, 0.25);
-        padding: 0.1em 0.45em;
-        border-radius: 5px;
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.82rem;
-        word-break: break-all;
-    }
-
-    .arrow-sep {
-        color: var(--text-muted);
-        font-size: 0.85rem;
-    }
-
-    /* ── Added/Removed ── */
-    .added-block {
-        background: var(--green-bg);
-        border: 1px solid rgba(34, 197, 94, 0.2);
-        border-radius: 10px;
-        padding: 0.75rem 1rem;
-    }
-
-    .removed-block {
-        background: var(--red-bg);
-        border: 1px solid rgba(239, 68, 68, 0.2);
-        border-radius: 10px;
-        padding: 0.75rem 1rem;
-        text-decoration: line-through;
-        color: var(--red);
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.85rem;
-        word-break: break-all;
-    }
-
-    .added-block .diff-row { margin-bottom: 0.35rem; }
-
-    .added-field { color: var(--text-muted); font-weight: 600; min-width: 120px; font-size: 0.78rem; font-family: 'JetBrains Mono', monospace; }
-    .added-val { color: var(--green); font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; }
-
-    /* ── Empty state ── */
-    .no-changes {
+    .empty-diff {
         text-align: center;
         padding: 5rem 2rem;
-        color: var(--text-muted);
+        background: rgba(255,255,255,0.02);
+        border: 1px dashed var(--border);
+        border-radius: 20px;
     }
-
-    .no-changes .icon { font-size: 3.5rem; margin-bottom: 1rem; opacity: 0.4; }
 </style>
 
-<div class="page-header fade-in">
-    <a href="/machine/{{ machine_key }}/history" class="back-link">← 返回历史记录</a>
-    <h1>变更审计报告</h1>
-</div>
-
-<div class="audit-meta fade-in">
-    <div class="audit-chip"><span>🖥</span> <strong>{{ machine.name }}</strong></div>
-    <div class="audit-chip"><span>📅</span> 基准 <strong>{{ t1 }}</strong></div>
-    <div class="audit-chip"><span>📅</span> 目标 <strong>{{ t2 }}</strong></div>
+<div class="audit-header fade-in">
+    <a href="/machine/{{ machine_key }}/history" class="back-link">← {{ _T('WEB_BACK_TO_HISTORY', lang) }}</a>
+    <h1>{{ _T('WEB_DIFF_AUDIT_REPORT', lang) }}</h1>
+    
+    <div class="audit-meta">
+        <div class="audit-chip"><span>📅</span> {{ _T('WEB_DIFF_BASE', lang) }} <b>{{ t1 }}</b></div>
+        <div class="audit-chip"><span>📅</span> {{ _T('WEB_DIFF_TARGET', lang) }} <b>{{ t2 }}</b></div>
+    </div>
 </div>
 
 {% if not diff %}
-    <div class="card fade-in">
-        <div class="no-changes">
-            <div class="icon">✅</div>
-            <p style="font-size:1rem; font-weight:600; color:var(--green);">所选时间段内未发现任何状态变更</p>
-            <p style="font-size:0.85rem; margin-top:0.5rem;">机器状态稳定，没有任何差异被检测到。</p>
-        </div>
+    <div class="empty-diff fade-in">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">✅</div>
+        <p style="font-size:1rem; font-weight:600; color:var(--green);">{{ _T('WEB_DIFF_NO_CHANGES', lang) }}</p>
+        <p style="font-size:0.85rem; margin-top:0.5rem;">{{ _T('WEB_DIFF_MACHINE_STABLE', lang) }}</p>
     </div>
-
 {% else %}
-    {% for collector, changes in diff.items() %}
-    <div class="collector-group" style="animation-delay: {{ loop.index0 * 0.07 }}s;">
-        <div class="collector-header">
-            <span class="collector-name">{{ collector }}</span>
-            <span class="change-count-pill">{{ changes|length }} 处变更</span>
-        </div>
 
-        {% for change in changes %}
-        <div class="change-item risk-{{ change.risk|lower }}">
-            <div class="change-header">
-                <div class="change-item-name">
-                    {{ change.item }}
-                    {% if change.risk != 'LOW' %}
-                        <span class="risk-badge risk-{{ change.risk }}">{{ change.risk }} RISK</span>
-                    {% endif %}
-                </div>
-                <span class="badge badge-{{ change.type }}">{{ change.type|upper }}</span>
-            </div>
-
-            <div class="change-body">
-                {% if change.risk_reason %}
-                    <div class="risk-reason">
-                        <span>⚠</span>
-                        <span>{{ change.risk_reason }}</span>
-                    </div>
-                {% endif %}
-
-                {% if change.type == 'changed' %}
-                    {% if change.old is mapping and change.new is mapping %}
-                        {% for key in change.new.keys() %}
-                            {% if change.old.get(key) != change.new.get(key) %}
-                                <div class="diff-row">
-                                    <span class="field-name">{{ key }}:</span>
-                                    <div class="diff-values">
-                                        <span class="old-val">{{ change.old.get(key)|string }}</span>
-                                        <span class="arrow-sep">→</span>
-                                        <span class="new-val">{{ change.new.get(key)|string }}</span>
-                                    </div>
-                                </div>
-                            {% endif %}
-                        {% endfor %}
-                    {% else %}
-                        <div class="diff-row">
-                            <div class="diff-values">
-                                <span class="old-val">{{ change.old }}</span>
-                                <span class="arrow-sep">→</span>
-                                <span class="new-val">{{ change.new }}</span>
-                            </div>
-                        </div>
-                    {% endif %}
-
-                {% elif change.type == 'added' %}
-                    <div class="added-block">
-                        {% if change.new is mapping %}
-                            {% for key, val in change.new.items() %}
-                                <div class="diff-row">
-                                    <span class="added-field">{{ key }}:</span>
-                                    <span class="added-val">{{ val|string }}</span>
-                                </div>
-                            {% endfor %}
-                        {% else %}
-                            <span class="added-val">{{ change.new }}</span>
-                        {% endif %}
-                    </div>
-
-                {% elif change.type == 'removed' %}
-                    <div class="removed-block">{{ change.old|string }}</div>
-                {% endif %}
-            </div>
-        </div>
-        {% endfor %}
+{% for collector, changes in diff.items() %}
+<div class="diff-collector-block fade-in" style="animation-delay: {{ loop.index0 * 0.1 }}s;">
+    <div class="collector-head">
+        <span class="collector-name">{{ collector }}</span>
+        <span class="change-count-pill">{{ _T('WEB_DIFF_CHANGES_COUNT', lang, count=changes|length) }}</span>
     </div>
-    {% endfor %}
+
+    <div class="diff-table">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width:120px;">{{ _T('REP_MD_COL_TYPE', lang) }}</th>
+                    <th>{{ _T('REP_MD_COL_ITEM', lang) }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for change in changes %}
+                <tr>
+                    <td>
+                        <span class="badge badge-{{ change.type }}">{{ change.type|upper }}</span>
+                    </td>
+                    <td>
+                        <div style="display:flex; align-items:center;">
+                            <span class="risk-indicator risk-{{ change.risk }}"></span>
+                            <span style="font-weight:500;">{{ change.item }}</span>
+                        </div>
+                        
+                        {# 风险原因展示 #}
+                        {% if change.risk == 'HIGH' or change.risk == 'MEDIUM' %}
+                        <div style="margin-top:0.4rem; font-size:0.8rem; color:var(--yellow); background:rgba(245,158,11,0.05); padding:0.4rem 0.7rem; border-radius:6px; border-left:2px solid var(--yellow);">
+                            ⚠️ {{ change.reason }}
+                        </div>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endfor %}
+
 {% endif %}
 {% endblock %}
