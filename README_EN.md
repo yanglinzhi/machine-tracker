@@ -61,6 +61,10 @@ mt show --collector network   # View detailed JSON for a specific collector
 ### 4. Automation & Logs
 ```bash
 sudo mt cron install --interval 10m  # Enable 10-minute auto-scan
+sudo mt cron install -f              # Force reinstall and refresh config
+mt cron start                        # Start the timer
+mt cron status                       # Check status
+sudo mt cron uninstall               # Uninstall the timer
 mt log scan                          # View background audit logs
 ```
 
@@ -68,6 +72,7 @@ mt log scan                          # View background audit logs
 ```bash
 sudo mt web install   # Register as a system service
 sudo mt web start     # Start the dashboard (Default: port 8000)
+sudo mt web uninstall # Uninstall the service
 ```
 
 ---

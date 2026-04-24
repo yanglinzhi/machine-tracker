@@ -61,6 +61,10 @@ mt show --collector network   # 查看特定维度的详细 JSON 数据
 ### 4. 自动化与日志
 ```bash
 sudo mt cron install --interval 10m  # 每10分钟后台自动扫描
+sudo mt cron install -f              # 强制重新安装并刷新配置
+mt cron start                        # 启动定时任务
+mt cron status                       # 查看状态
+sudo mt cron uninstall               # 卸载定时任务
 mt log scan                          # 查看后台审计日志
 ```
 
@@ -68,6 +72,7 @@ mt log scan                          # 查看后台审计日志
 ```bash
 sudo mt web install   # 注册后台服务
 sudo mt web start     # 启动监控面板 (默认端口 8000)
+sudo mt web uninstall # 卸载后台服务
 ```
 
 ---

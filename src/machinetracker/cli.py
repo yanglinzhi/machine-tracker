@@ -252,15 +252,24 @@ def web(ctx, port, host):
         except ImportError:
             logger.error("Please install dependencies: pip install fastapi uvicorn jinja2")
 
-@web.command()
-def install():
+@web.command(name="install")
+@click.option('-f', '--force', is_flag=True, help="Force reinstall")
+def web_install(force):
     """Install Systemd service (requires sudo)"""
     ensure_root()
     import getpass
     user = os.environ.get("SUDO_USER", getpass.getuser())
-    SystemdManager(user).install_web_service()
+    SystemdManager(user).install_web_service(force=force)
     lang = get_app_lang()
     logger.info(_T("LOG_WEB_REGISTERED", lang))
+
+@web.command()
+def uninstall():
+    """Uninstall Web service (requires sudo)"""
+    ensure_root()
+    SystemdManager("").uninstall_web_service()
+    lang = get_app_lang()
+    logger.info(_T("LOG_WEB_UNINSTALLED", lang))
 
 @web.command()
 def start():
@@ -285,6 +294,12 @@ def restart():
     SystemdManager("").manage_service("restart", WEB_SERVICE_NAME)
     lang = get_app_lang()
     logger.info(_T("LOG_WEB_RESTARTED", lang))
+
+@web.command()
+def status():
+    """Check Web service status"""
+    import subprocess
+    subprocess.run(["systemctl", "status", WEB_SERVICE_NAME])
 
 @main.group(help=_T("CLI_LOG_HELP", CURRENT_LOCALE))
 def log():
@@ -320,13 +335,29 @@ def cron():
 
 @cron.command(name="install")
 @click.option('--interval', default="10m")
-def cron_install(interval):
+@click.option('-f', '--force', is_flag=True, help="Force reinstall")
+def cron_install(interval, force):
     """Install timer"""
     import getpass
     user = os.environ.get("SUDO_USER", getpass.getuser())
-    SystemdManager(user).install_scan_timer(interval)
+    SystemdManager(user).install_scan_timer(interval, force=force)
     lang = get_app_lang()
     logger.info(_T("LOG_CRON_INSTALLED", lang, interval=interval))
+
+@cron.command()
+def uninstall():
+    """Uninstall periodic scan (requires sudo)"""
+    ensure_root()
+    SystemdManager("").uninstall_scan_timer()
+    lang = get_app_lang()
+    logger.info(_T("LOG_CRON_UNINSTALLED", lang))
+
+@cron.command()
+def start():
+    """Start periodic scan"""
+    SystemdManager("").manage_service("start", f"{SCAN_SERVICE_NAME}.timer")
+    lang = get_app_lang()
+    logger.info(_T("LOG_CRON_STARTED", lang))
 
 @cron.command()
 def stop():
@@ -334,6 +365,19 @@ def stop():
     SystemdManager("").manage_service("stop", f"{SCAN_SERVICE_NAME}.timer")
     lang = get_app_lang()
     logger.info(_T("LOG_CRON_STOPPED", lang))
+
+@cron.command()
+def restart():
+    """Restart periodic scan"""
+    SystemdManager("").manage_service("restart", f"{SCAN_SERVICE_NAME}.timer")
+    lang = get_app_lang()
+    logger.info(_T("LOG_CRON_RESTARTED", lang))
+
+@cron.command()
+def status():
+    """Check periodic scan status"""
+    import subprocess
+    subprocess.run(["systemctl", "status", f"{SCAN_SERVICE_NAME}.timer"])
 
 if __name__ == "__main__":
     main()

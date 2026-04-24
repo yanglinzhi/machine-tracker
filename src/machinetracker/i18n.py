@@ -42,11 +42,15 @@ TRANSLATIONS = {
 
     # Web & Cron 服务管理
     "LOG_WEB_REGISTERED": {"zh": "Web 服务已成功注册为系统服务。", "en": "Web service successfully registered as a system service."},
+    "LOG_WEB_UNINSTALLED": {"zh": "Web 服务已成功卸载。", "en": "Web service successfully uninstalled."},
     "LOG_WEB_STARTED": {"zh": "Web 服务已启动。", "en": "Web service started."},
     "LOG_WEB_STOPPED": {"zh": "Web 服务已停止。", "en": "Web service stopped."},
     "LOG_WEB_RESTARTED": {"zh": "Web 服务已重启。", "en": "Web service restarted."},
     "LOG_CRON_INSTALLED": {"zh": "定时扫描任务已安装，间隔: {interval}", "en": "Periodic scan task installed, interval: {interval}"},
+    "LOG_CRON_UNINSTALLED": {"zh": "定时扫描任务已成功卸载。", "en": "Periodic scan task successfully uninstalled."},
+    "LOG_CRON_STARTED": {"zh": "定时扫描任务已启动。", "en": "Periodic scan task started."},
     "LOG_CRON_STOPPED": {"zh": "定时扫描任务已停止。", "en": "Periodic scan task stopped."},
+    "LOG_CRON_RESTARTED": {"zh": "定时扫描任务已重启。", "en": "Periodic scan task restarted."},
 
     # 报告与摘要
     "REP_NO_CHANGES": {"zh": "没有检测到任何变更。", "en": "No changes detected."},

@@ -15,9 +15,11 @@ class SystemdManager:
     def _run_cmd(self, cmd: list, use_sudo: bool = True):
         full_cmd = ["sudo"] + cmd if use_sudo and os.getuid() != 0 else cmd
         return subprocess.run(full_cmd, check=True, capture_output=True, text=True)
-
-    def install_web_service(self):
+    def install_web_service(self, force: bool = False):
         """安装 Web GUI 服务"""
+        if force:
+            self.manage_service("stop", WEB_SERVICE_NAME)
+
         mt_path = shutil.which("mt")
         content = f"""[Unit]
 Description=MachineTracker Web GUI
@@ -37,10 +39,23 @@ WantedBy=multi-user.target
 """
         self._write_and_reload(WEB_SERVICE_NAME, content)
 
-    def install_scan_timer(self, interval: str = "10m"):
+    def uninstall_web_service(self):
+        """卸载 Web GUI 服务"""
+        self._run_cmd(["systemctl", "stop", WEB_SERVICE_NAME], use_sudo=True)
+        self._run_cmd(["systemctl", "disable", WEB_SERVICE_NAME], use_sudo=True)
+        svc_path = Path(f"/etc/systemd/system/{WEB_SERVICE_NAME}.service")
+        if svc_path.exists():
+            self._run_cmd(["rm", str(svc_path)], use_sudo=True)
+        self._run_cmd(["systemctl", "daemon-reload"], use_sudo=True)
+
+    def install_scan_timer(self, interval: str = "10m", force: bool = False):
         """安装定时扫描服务与定时器"""
+        if force:
+            self.manage_service("stop", f"{SCAN_SERVICE_NAME}.timer")
+            self.manage_service("stop", f"{SCAN_SERVICE_NAME}.service")
+
         mt_path = shutil.which("mt")
-        
+
         service_content = f"""[Unit]
 Description=MachineTracker Periodic Scan
 After=network.target
@@ -48,12 +63,11 @@ After=network.target
 [Service]
 Type=oneshot
 User=root
-RemainAfterExit=yes
 ExecStart={mt_path} scan
 Environment=MT_CONFIG={self.config_path}
 Environment=SUDO_USER={self.user}
 """
-        
+
         timer_content = f"""[Unit]
 Description=Run MachineTracker scan every {interval}
 
@@ -66,6 +80,18 @@ Unit={SCAN_SERVICE_NAME}.service
 WantedBy=timers.target
 """
         self._write_and_reload(SCAN_SERVICE_NAME, service_content, is_timer=True, timer_content=timer_content)
+
+    def uninstall_scan_timer(self):
+        """卸载定时扫描服务与定时器"""
+        self._run_cmd(["systemctl", "stop", f"{SCAN_SERVICE_NAME}.timer"], use_sudo=True)
+        self._run_cmd(["systemctl", "disable", f"{SCAN_SERVICE_NAME}.timer"], use_sudo=True)
+        self._run_cmd(["systemctl", "stop", f"{SCAN_SERVICE_NAME}.service"], use_sudo=True)
+
+        for ext in [".service", ".timer"]:
+            path = Path(f"/etc/systemd/system/{SCAN_SERVICE_NAME}{ext}")
+            if path.exists():
+                self._run_cmd(["rm", str(path)], use_sudo=True)
+        self._run_cmd(["systemctl", "daemon-reload"], use_sudo=True)
 
     def _write_and_reload(self, name: str, content: str, is_timer: bool = False, timer_content: Optional[str] = None):
         svc_path = Path(f"/etc/systemd/system/{name}.service")
